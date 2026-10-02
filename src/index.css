@@ -168,7 +168,7 @@ body {
   z-index: 5;
 }
 
-/* 3. Pure Icon-Only Floating Dock */
+/* 3. Pure Icon-Only Floating Dock (No Text Names) */
 .burn-controls-toolbar {
   display: flex;
   align-items: center;
@@ -176,7 +176,7 @@ body {
   background: rgba(14, 16, 22, 0.55);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  padding: 6px 10px;
+  padding: 6px 12px;
   border-radius: 9999px;
   border: 1px solid rgba(255, 255, 255, 0.09);
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.5);
@@ -203,10 +203,10 @@ body {
 }
 
 .icon-only-btn.active-icon-btn {
-  background: rgba(255, 85, 17, 0.18);
+  background: rgba(255, 85, 17, 0.22);
   color: #ffb84d;
-  border: 1px solid rgba(255, 184, 77, 0.35);
-  box-shadow: 0 0 16px rgba(255, 85, 17, 0.25);
+  border: 1px solid rgba(255, 184, 77, 0.4);
+  box-shadow: 0 0 16px rgba(255, 85, 17, 0.28);
   transform: translateY(-1px);
 }
 

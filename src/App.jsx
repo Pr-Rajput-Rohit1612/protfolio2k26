@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Flame, Sparkles, RotateCcw } from 'lucide-react';
+import { Flame, RotateCcw, Play, Pause } from 'lucide-react';
 import './index.css';
 
 export default function App() {
   const [navVisible, setNavVisible] = useState(true);
-  const [burnMode, setBurnMode] = useState('reveal'); // 'reveal' or 'torch'
+  const [isAutoBurning, setIsAutoBurning] = useState(false);
 
   const canvasRef = useRef(null);
   const particlesCanvasRef = useRef(null);
-  const burnMapCanvasRef = useRef(null);
   const resetBurnRef = useRef(null);
+  const triggerAutoBurnRef = useRef(null);
   const lastScrollY = useRef(0);
 
   // Smooth, zero-jank scroll navbar toggle
@@ -36,8 +36,9 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Photorealistic Burning Paper Engine matching exact reference:
-  // Tall licking fire tongues, craggy charred carbon crust, warm scorched halo, and floating embers
+  // Realistic Paper Combustion Simulation:
+  // Non-circular organic burn front, tall licking flames, black charred paper, 
+  // and crumbling black ash flakes flying away in the wind (hawa me udna).
   useEffect(() => {
     const canvas = canvasRef.current;
     const pCanvas = particlesCanvasRef.current;
@@ -56,56 +57,24 @@ export default function App() {
     pCanvas.width = W;
     pCanvas.height = H;
 
-    // Offscreen 2D Accumulation Canvas for Permanent Burn Trail
-    const bCanvas = document.createElement('canvas');
-    bCanvas.width = 512;
-    bCanvas.height = 768;
-    const bCtx = bCanvas.getContext('2d');
-    bCtx.fillStyle = '#000000';
-    bCtx.fillRect(0, 0, bCanvas.width, bCanvas.height);
-    burnMapCanvasRef.current = bCanvas;
-
-    // Reset function exposed
-    resetBurnRef.current = () => {
-      bCtx.fillStyle = '#000000';
-      bCtx.fillRect(0, 0, bCanvas.width, bCanvas.height);
-      for (let i = 0; i < 40; i++) {
-        sparks.push({
-          x: Math.random() * W,
-          y: Math.random() * H,
-          vx: (Math.random() - 0.5) * 2.0,
-          vy: -Math.random() * 2.2 - 0.8,
-          size: Math.random() * 2.2 + 0.8,
-          life: 1.0,
-          decay: Math.random() * 0.012 + 0.008,
-          heat: 1.0
-        });
-      }
-    };
-
     // Vertex Shader: Fullscreen Quad
     const vsSource = `
       attribute vec2 a_position;
       varying vec2 v_uv;
       void main() {
         v_uv = (a_position + 1.0) * 0.5;
-        v_uv.y = 1.0 - v_uv.y;
+        v_uv.y = 1.0 - v_uv.y; // Correct WebGL texture coordinate
         gl_Position = vec4(a_position, 0.0, 1.0);
       }
     `;
 
-    // Fragment Shader: Volumetric Upward Licking Fire, Thick Craggy Carbon Crust & Scorched Halos
+    // Fragment Shader: Organic Creeping Fire Front (No Circles!), Tall Licking Flames & Charred Carbon
     const fsSource = `
       precision highp float;
       uniform sampler2D u_top;
       uniform sampler2D u_bottom;
-      uniform sampler2D u_burnMap;
-      uniform vec2 u_mouse;
-      uniform float u_radius;
-      uniform float u_aspect;
-      uniform float u_hover;
+      uniform float u_burnProgress; // 0.0 (unburnt) to 1.0 (fully burnt from bottom to top)
       uniform float u_time;
-      uniform int u_mode; // 0 = reveal, 1 = torch
       varying vec2 v_uv;
 
       // 2D Simplex Noise
@@ -136,23 +105,17 @@ export default function App() {
         return 130.0 * dot(m, g);
       }
 
-      // Multi-Octave Fractal Noise
+      // Multi-Octave Fractal Noise for Organic Paper Tear
       float fbm(vec2 p) {
         float f = 0.0;
-        f += 0.5000 * snoise(p); p *= 2.03;
-        f += 0.2500 * snoise(p); p *= 2.02;
+        f += 0.5000 * snoise(p); p *= 2.02;
+        f += 0.2500 * snoise(p); p *= 2.03;
         f += 0.1250 * snoise(p); p *= 2.01;
         f += 0.0625 * snoise(p);
         return f;
       }
 
-      // Craggy Charcoal Crust Noise (Thick irregular carbon chunks)
-      float craggyNoise(vec2 p) {
-        vec2 q = vec2(fbm(p), fbm(p + vec2(2.8, 1.3)));
-        return fbm(p + 3.0 * q);
-      }
-
-      // Aspect-Ratio Cover UV Mapping
+      // Aspect-Ratio Cover Mapping
       vec2 coverUV(vec2 uv, vec2 imgSize, vec2 canvasSize) {
         float imgAspect = imgSize.x / imgSize.y;
         float canvasAspect = canvasSize.x / canvasSize.y;
@@ -177,153 +140,127 @@ export default function App() {
         vec2 uvTop = coverUV(uv, topSize, canvasSize);
         vec2 uvBottom = coverUV(uv, bottomSize, canvasSize);
 
-        // Distance from cursor
-        vec2 diff = uv - u_mouse;
-        diff.y *= u_aspect;
-        float dist = length(diff);
-
-        // Base Burn Accumulation
-        float burnStrength = 0.0;
-        if (u_mode == 0) {
-          float mapVal = texture2D(u_burnMap, uv).r;
-          float activeTip = (1.0 - smoothstep(0.0, u_radius * 0.95, dist)) * u_hover;
-          burnStrength = max(mapVal, activeTip);
-        } else {
-          burnStrength = (1.0 - smoothstep(0.0, u_radius, dist)) * u_hover;
-        }
-
-        // Pristine paper if no burn anywhere
-        if (burnStrength <= 0.001) {
+        // If completely unburnt, show pristine paper
+        if (u_burnProgress <= 0.001) {
           gl_FragColor = texture2D(u_top, uvTop);
           return;
         }
 
-        // 1. Slow, Gentle Heat Shimmer Wave (Optical mirage around fire)
+        // 1. Organic, Non-Circular Paper Burn Contour (Burns from bottom upward)
+        // Irregular paper tear line: macro undulation + micro cellulose fibers
+        float macroWave = fbm(vec2(uv.x * 3.5, 1.2)) * 0.14;
+        float microTear = snoise(vec2(uv.x * 18.0, uv.y * 8.0)) * 0.04;
+        float breathingFlame = sin(u_time * 2.2 + uv.x * 8.0) * 0.015;
+
+        // Current organic height of the fire line
+        // u_burnProgress goes 0 -> 1. Paper burns from Y = 1.0 (bottom) up to Y = 0.0 (top)
+        float fireLineY = (1.0 - u_burnProgress * 1.18) + macroWave + microTear + breathingFlame;
+
+        // Distance from current pixel to the fire line (positive = paper above flame, negative = burned below flame)
+        float distToFire = uv.y - fireLineY;
+
+        // 2. Rising Heat Mirage Shimmer above the fire
+        float heatInfluence = smoothstep(0.35, 0.0, distToFire) * smoothstep(-0.15, 0.0, distToFire);
         vec2 heatRefract = vec2(
-          sin(u_time * 2.5 + uv.y * 20.0),
-          cos(u_time * 2.0 + uv.x * 16.0)
-        ) * 0.003 * smoothstep(0.0, 0.5, burnStrength);
+          sin(u_time * 2.5 + uv.y * 24.0),
+          cos(u_time * 2.0 + uv.x * 18.0)
+        ) * 0.0035 * heatInfluence;
 
         vec4 topColor = texture2D(u_top, uvTop + heatRefract);
         vec4 bottomColor = texture2D(u_bottom, uvBottom);
 
-        // 2. Thick, Craggy Charcoal Crust & Jagged Paper Edge Noise
-        float crag = craggyNoise(uv * 12.0) * 0.5 + 0.5;
-        float fineFibers = snoise(uv * 48.0) * 0.09;
-
-        // Slow organic smolder breathing
-        float breathingEmbers = sin(u_time * 2.4 + uv.x * 10.0) * 0.035;
-
-        // Progress thresholding
-        float burnProgress = burnStrength * 1.52 - (1.0 - (crag + fineFibers)) * 0.44 + breathingEmbers;
-
-        // 3. Volumetric Upward Licking Fire Tongues (Matching Reference Photo)
-        // Flames lick vertically upward with natural convection velocity and turbulent curl
-        vec2 flameUV = uv * vec2(10.0, 3.8);
-        flameUV.y += u_time * 1.35; // Gentle upward flame flow
-        flameUV.x += sin(u_time * 1.2 + uv.y * 7.0) * 0.4; // Curl turbulence
+        // 3. Volumetric Upward Licking Fire Tongues (Real combustion flames)
+        vec2 flameUV = uv * vec2(12.0, 4.0);
+        flameUV.y += u_time * 1.4; // Upward convection velocity
+        flameUV.x += sin(u_time * 1.2 + uv.y * 6.0) * 0.35; // Turbulent curl
 
         float flameNoise1 = fbm(flameUV);
-        float flameNoise2 = fbm(flameUV * 2.1 + vec2(1.7, 4.3));
-        float flameShape = flameNoise1 * 0.65 + flameNoise2 * 0.35;
+        float flameNoise2 = fbm(flameUV * 2.2 + vec2(2.1, 4.7));
+        float flameTurbulence = flameNoise1 * 0.65 + flameNoise2 * 0.35;
 
-        // Flame zone: intense along the active smoldering boundary, licking tall into the charred paper
-        float flameBand = smoothstep(0.56, 0.72, burnProgress) * (1.0 - smoothstep(0.80, 0.96, burnProgress));
-        float flameTongue = flameBand * pow(flameShape + 0.15, 1.8) * 2.2;
-        flameTongue *= (0.85 + 0.25 * sin(u_time * 3.0 + uv.x * 8.0));
+        // Flame zone extends upward from the burning edge (distToFire between -0.04 and 0.14)
+        float flameMask = smoothstep(-0.04, 0.01, distToFire) * (1.0 - smoothstep(0.04, 0.16, distToFire));
+        float flameTongue = flameMask * pow(flameTurbulence + 0.12, 1.7) * 2.4;
 
-        // ------------------ PHOTO-MATCHED LAYER COMPOSITION ------------------
+        // ------------------ LAYERED COMBUSTION REALISM ------------------
 
-        // ZONE 1: Paper completely burned away (Reveals bottom photo with curled paper drop shadow)
-        if (burnProgress > 0.83) {
-          float shadowDist = burnProgress - 0.83;
-          float shadowAmt = smoothstep(0.0, 0.10, shadowDist);
-          // Dark ambient occlusion under the curled burnt edge
-          vec3 shadowedPhoto = mix(bottomColor.rgb * 0.30, bottomColor.rgb, shadowAmt);
+        // ZONE 1: Paper burned away and black ash has blown away into the air! (Reveals bottom photo)
+        if (distToFire > 0.055) {
+          // Contact drop-shadow cast by the curled burnt paper edge
+          float shadowAmt = smoothstep(0.055, 0.14, distToFire);
+          vec3 revealed = mix(bottomColor.rgb * 0.32, bottomColor.rgb, shadowAmt);
+          gl_FragColor = vec4(revealed, 1.0);
+        }
+        // ZONE 2: Craggy Black Charred Carbon Edge (Ash about to crumble and blow away)
+        else if (distToFire > 0.012) {
+          float t = (distToFire - 0.012) / 0.043;
+          vec3 carbonDeep = vec3(0.02, 0.012, 0.01);
+          vec3 carbonSoot = vec3(0.07, 0.04, 0.02);
+          vec3 emberCling = vec3(0.85, 0.18, 0.02);
 
-          // Licking flame wash over the burn hole rim
-          if (flameTongue > 0.10) {
-            vec3 flameColor = mix(vec3(1.0, 0.35, 0.01), vec3(1.3, 0.95, 0.3), flameTongue);
-            shadowedPhoto = mix(shadowedPhoto, flameColor, flameTongue * 0.5);
+          float textureBump = snoise(uv * 70.0) * 0.5 + 0.5;
+          vec3 charredCrust = mix(carbonDeep, carbonSoot, textureBump);
+
+          // Glowing red embers clinging to the black ash
+          float emberGlow = step(0.78, snoise(uv * 90.0 + vec2(u_time * 0.15)));
+          charredCrust = mix(charredCrust, emberCling, pow(1.0 - t, 2.5) * 0.85 + emberGlow * 0.4);
+
+          // Add licking flame highlights
+          if (flameTongue > 0.1) {
+            vec3 tongueCol = mix(vec3(1.0, 0.3, 0.01), vec3(1.3, 0.9, 0.2), flameTongue);
+            charredCrust = mix(charredCrust, tongueCol, flameTongue * 0.6);
           }
 
-          gl_FragColor = vec4(shadowedPhoto, 1.0);
+          gl_FragColor = vec4(charredCrust, 1.0);
         }
-        // ZONE 2: Blazing Incandescent Fire Seam (Intense Yellow-White Core to Fiery Orange)
-        else if (burnProgress > 0.68) {
-          float t = (burnProgress - 0.68) / 0.15;
+        // ZONE 3: Active Blazing Fireline (Intense white-hot core, vivid yellow & fire orange)
+        else if (distToFire > -0.025) {
+          float t = (distToFire - (-0.025)) / 0.037;
 
-          // Reference-accurate fire color ramp:
-          // Deep Blood Crimson -> Blazing Fiery Orange -> Radiant Sun Yellow -> Incandescent White Core
-          vec3 colCrimson = vec3(0.75, 0.06, 0.01);
-          vec3 colOrange  = vec3(1.0, 0.38, 0.02);
-          vec3 colYellow  = vec3(1.0, 0.85, 0.10);
+          // Pure fire spectrum: Deep Crimson -> Cadmium Orange -> Sun Gold -> White-Hot Core
+          vec3 colCrimson = vec3(0.80, 0.08, 0.01);
+          vec3 colOrange  = vec3(1.0, 0.40, 0.02);
+          vec3 colYellow  = vec3(1.0, 0.88, 0.12);
           vec3 colWhite   = vec3(1.45, 1.40, 1.15);
 
           vec3 flameCol;
-          if (t < 0.40) {
-            flameCol = mix(colCrimson, colOrange, t / 0.40);
-          } else if (t < 0.80) {
-            flameCol = mix(colOrange, colYellow, (t - 0.40) / 0.40);
+          if (t < 0.4) {
+            flameCol = mix(colCrimson, colOrange, t / 0.4);
+          } else if (t < 0.8) {
+            flameCol = mix(colOrange, colYellow, (t - 0.4) / 0.4);
           } else {
-            flameCol = mix(colYellow, colWhite, (t - 0.80) / 0.20);
+            flameCol = mix(colYellow, colWhite, (t - 0.8) / 0.2);
           }
 
-          // Gentle natural heat breathing
-          float heatPulse = 1.30 + sin(u_time * 2.6 + uv.x * 14.0) * 0.25;
-          flameCol *= heatPulse;
+          // Living heat pulse
+          flameCol *= (1.25 + sin(u_time * 2.8 + uv.x * 12.0) * 0.25);
 
-          // Blend tall upward licking flames
-          if (flameTongue > 0.06) {
-            vec3 tongueCol = mix(vec3(1.0, 0.20, 0.01), vec3(1.35, 1.15, 0.5), flameTongue);
+          if (flameTongue > 0.05) {
+            vec3 tongueCol = mix(vec3(1.0, 0.25, 0.02), vec3(1.4, 1.2, 0.5), flameTongue);
             flameCol = max(flameCol, tongueCol);
           }
 
           gl_FragColor = vec4(flameCol, 1.0);
         }
-        // ZONE 3: Craggy Black Charcoal Ash Crust (Thick, textured soot & brittle carbon)
-        else if (burnProgress > 0.50) {
-          float t = (burnProgress - 0.50) / 0.18;
-          vec3 carbonDeep = vec3(0.02, 0.012, 0.01);
-          vec3 carbonSoot = vec3(0.06, 0.035, 0.02);
-          vec3 emberCling = vec3(0.75, 0.16, 0.02);
-
-          // Craggy texture variation
-          float textureBump = snoise(uv * 60.0) * 0.5 + 0.5;
-          vec3 crust = mix(carbonDeep, carbonSoot, textureBump);
-
-          // Glowing ember specks embedded in the black char
-          float emberSpeck = step(0.82, snoise(uv * 85.0 + vec2(u_time * 0.1)));
-          crust = mix(crust, emberCling, pow(t, 2.5) * 0.70 + emberSpeck * 0.35);
-
-          // Add tall licking flame tongues over the black crust! (Just like in the reference photo)
-          if (flameTongue > 0.15) {
-            vec3 tongueCol = mix(vec3(0.9, 0.22, 0.01), vec3(1.25, 0.85, 0.2), flameTongue);
-            crust = mix(crust, tongueCol, flameTongue * 0.75);
-          }
-
-          gl_FragColor = vec4(crust, 1.0);
-        }
-        // ZONE 4: Warm Scorched Sienna Halo (Thermal paper degradation & soot)
-        else if (burnProgress > 0.32) {
-          float t = (burnProgress - 0.32) / 0.18;
-          // Exact toasted sienna brown from reference photo:
-          vec3 scorchSienna = vec3(0.28, 0.13, 0.05);
+        // ZONE 4: Toasted Sienna Scorched Halo (Thermal damage & soot in paper)
+        else if (distToFire > -0.12) {
+          float t = (distToFire - (-0.12)) / 0.095;
+          vec3 scorchSienna = vec3(0.30, 0.14, 0.05);
           vec3 toastedHalo = mix(topColor.rgb * 0.65, scorchSienna, t);
 
           // Curled paper lip highlight
-          float lipHighlight = smoothstep(0.32, 0.37, burnProgress) * (1.0 - smoothstep(0.37, 0.44, burnProgress));
+          float lipHighlight = smoothstep(-0.06, -0.03, distToFire) * (1.0 - smoothstep(-0.03, 0.0, distToFire));
           toastedHalo += vec3(0.12, 0.09, 0.05) * lipHighlight;
 
-          // Rising soft flame tongue tips licking onto the toasted paper
-          if (flameTongue > 0.25) {
-            vec3 softTongue = vec3(1.0, 0.40, 0.05);
-            toastedHalo = mix(toastedHalo, softTongue, (flameTongue - 0.25) * 0.45);
+          // Licking flame tips shooting into the scorched paper
+          if (flameTongue > 0.2) {
+            vec3 softFlame = vec3(1.0, 0.45, 0.05);
+            toastedHalo = mix(toastedHalo, softFlame, (flameTongue - 0.2) * 0.5);
           }
 
           gl_FragColor = vec4(toastedHalo, 1.0);
         }
-        // ZONE 5: Pristine Paper Sheet
+        // ZONE 5: Pristine Untouched Paper Sheet
         else {
           gl_FragColor = topColor;
         }
@@ -373,19 +310,11 @@ export default function App() {
     // Uniform Locations
     const uTopLoc = gl.getUniformLocation(program, 'u_top');
     const uBottomLoc = gl.getUniformLocation(program, 'u_bottom');
-    const uBurnMapLoc = gl.getUniformLocation(program, 'u_burnMap');
-    const uMouseLoc = gl.getUniformLocation(program, 'u_mouse');
-    const uRadiusLoc = gl.getUniformLocation(program, 'u_radius');
-    const uAspectLoc = gl.getUniformLocation(program, 'u_aspect');
-    const uHoverLoc = gl.getUniformLocation(program, 'u_hover');
+    const uBurnProgressLoc = gl.getUniformLocation(program, 'u_burnProgress');
     const uTimeLoc = gl.getUniformLocation(program, 'u_time');
-    const uModeLoc = gl.getUniformLocation(program, 'u_mode');
 
     gl.uniform1i(uTopLoc, 0);
     gl.uniform1i(uBottomLoc, 1);
-    gl.uniform1i(uBurnMapLoc, 2);
-    gl.uniform1f(uRadiusLoc, 0.16); // Refined burn tip radius
-    gl.uniform1f(uAspectLoc, H / W);
 
     // Texture creation helper
     const createTexture = (unit, source) => {
@@ -426,115 +355,166 @@ export default function App() {
       bottomTexReady = true;
     }
 
-    // Dynamic Burn Map Texture (Unit 2)
-    const burnTexture = gl.createTexture();
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, burnTexture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bCanvas);
+    // ---------------- ASH FLAKES & FLYING EMBERS SIMULATION ----------------
+    // Simulates the black charred paper crumbling and flying away into the wind (Hawa me udna)!
+    const ashFlakes = [];
+    const maxAshFlakes = 65;
 
-    // Floating Sparks & Cinders System (Gentle Campfire Drift)
     const sparks = [];
-    const maxSparks = 80;
+    const maxSparks = 70;
 
-    const spawnSpark = (x, y, speedMult = 1.0) => {
+    // Spawn tumbling black paper ash flakes that float in the wind
+    const spawnAshFlake = (x, y) => {
+      if (ashFlakes.length >= maxAshFlakes) return;
+      ashFlakes.push({
+        x: x + (Math.random() - 0.5) * 40,
+        y: y + (Math.random() - 0.5) * 15,
+        vx: (Math.random() - 0.42) * 2.2, // Drift sideways with natural wind
+        vy: -Math.random() * 2.5 - 1.0, // Float upward on hot thermal draft
+        width: Math.random() * 9 + 5,
+        height: Math.random() * 6 + 3,
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.08,
+        flipAngle: Math.random() * Math.PI * 2,
+        flipSpeed: Math.random() * 0.06 + 0.02,
+        life: 1.0,
+        decay: Math.random() * 0.009 + 0.006, // Floats long into the air
+        colorR: Math.floor(Math.random() * 15 + 18),
+        colorG: Math.floor(Math.random() * 12 + 16),
+        colorB: Math.floor(Math.random() * 10 + 14),
+        hasEmberGlow: Math.random() < 0.45
+      });
+    };
+
+    // Spawn bright fiery spark embers
+    const spawnSpark = (x, y) => {
       if (sparks.length >= maxSparks) return;
       const angle = Math.random() * Math.PI * 2;
-      const speed = (Math.random() * 1.4 + 0.5) * speedMult;
+      const speed = Math.random() * 1.6 + 0.6;
       sparks.push({
-        x: x + (Math.random() - 0.5) * 18,
-        y: y + (Math.random() - 0.5) * 18,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - (Math.random() * 1.6 + 0.9), // Gentle upward thermal draft
-        size: Math.random() * 2.2 + 0.8,
+        x: x + (Math.random() - 0.5) * 30,
+        y: y + (Math.random() - 0.5) * 12,
+        vx: Math.cos(angle) * speed + 0.3,
+        vy: Math.sin(angle) * speed - (Math.random() * 2.0 + 1.2), // Rising updraft
+        size: Math.random() * 2.0 + 0.8,
         life: 1.0,
-        decay: Math.random() * 0.011 + 0.008, // Slow, peaceful decay
+        decay: Math.random() * 0.014 + 0.009,
         heat: Math.random() * 0.35 + 0.65
       });
     };
 
-    // Smooth cursor tracking
-    let targetMouse = { x: 0.5, y: 0.5 };
-    let currentMouse = { x: 0.5, y: 0.5 };
-    let lastMousePos = { x: 0.5, y: 0.5 };
-    let isHovered = false;
-    let hoverAmount = 0.0;
-    let animId;
+    // Burning state & interaction
+    let currentBurn = 0.08; // Start with gentle bottom fire lit
+    let targetBurn = 0.08;
+    let isHovering = false;
+    let autoBurn = false;
     let clock = 0;
-    let burnDirty = false;
+    let animId;
 
-    // Stamp burn spot
-    const stampBurn = (nx, ny, radius = 30) => {
-      const bx = nx * bCanvas.width;
-      const by = ny * bCanvas.height;
-
-      const grad = bCtx.createRadialGradient(bx, by, 0, bx, by, radius);
-      grad.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
-      grad.addColorStop(0.55, 'rgba(255, 255, 255, 0.92)');
-      grad.addColorStop(0.85, 'rgba(255, 255, 255, 0.40)');
-      grad.addColorStop(1, 'rgba(255, 255, 255, 0.0)');
-
-      bCtx.fillStyle = grad;
-      bCtx.beginPath();
-      bCtx.arc(bx, by, radius, 0, Math.PI * 2);
-      bCtx.fill();
-      burnDirty = true;
+    // Reset Sheet
+    resetBurnRef.current = () => {
+      targetBurn = 0.0;
+      currentBurn = 0.0;
+      setIsAutoBurning(false);
+      autoBurn = false;
+      // Burst of ash blowing away
+      for (let i = 0; i < 40; i++) {
+        spawnAshFlake(Math.random() * W, H * 0.85);
+        spawnSpark(Math.random() * W, H * 0.85);
+      }
     };
 
-    // Continuous 60fps Render Loop
+    // Auto-Burn Toggle
+    triggerAutoBurnRef.current = () => {
+      setIsAutoBurning(prev => {
+        const next = !prev;
+        autoBurn = next;
+        return next;
+      });
+    };
+
+    // Main 60fps Loop
     const renderLoop = () => {
-      clock += 0.016; // Natural, hypnotic time progression
+      clock += 0.016;
 
-      currentMouse.x += (targetMouse.x - currentMouse.x) * 0.14;
-      currentMouse.y += (targetMouse.y - currentMouse.y) * 0.14;
-      hoverAmount += ((isHovered ? 1.0 : 0.0) - hoverAmount) * 0.09;
+      // Auto-burn progression if active
+      if (autoBurn) {
+        targetBurn = Math.min(1.0, targetBurn + 0.002);
+      }
 
-      const dx = (currentMouse.x - lastMousePos.x) * W;
-      const dy = (currentMouse.y - lastMousePos.y) * H;
-      const speed = Math.sqrt(dx * dx + dy * dy);
-      lastMousePos.x = currentMouse.x;
-      lastMousePos.y = currentMouse.y;
+      // Smooth interpolation of burn progress
+      currentBurn += (targetBurn - currentBurn) * 0.08;
 
-      if (isHovered && burnMode === 'reveal') {
-        const burnRadius = Math.min(40, Math.max(24, 28 + speed * 0.35));
-        stampBurn(currentMouse.x, currentMouse.y, burnRadius);
+      // Current screen Y coordinate of active fire line
+      const currentFireScreenY = (1.0 - currentBurn * 1.15) * H;
 
+      // If burning is active, continuously spawn crumbling black ash flakes & sparks along the fire front!
+      if (currentBurn > 0.02 && currentBurn < 0.98) {
         if (Math.random() < 0.75) {
-          spawnSpark(currentMouse.x * W, currentMouse.y * H, 1.0);
+          const spawnX = Math.random() * W;
+          spawnAshFlake(spawnX, currentFireScreenY);
         }
-      } else if (isHovered && burnMode === 'torch') {
-        if (Math.random() < 0.45) {
-          spawnSpark(currentMouse.x * W, currentMouse.y * H, 0.85);
+        if (Math.random() < 0.85) {
+          const spawnX = Math.random() * W;
+          spawnSpark(spawnX, currentFireScreenY);
         }
       }
 
-      if (burnDirty) {
-        gl.activeTexture(gl.TEXTURE2);
-        gl.bindTexture(gl.TEXTURE_2D, burnTexture);
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, bCanvas);
-        burnDirty = false;
-      }
-
+      // Render WebGL Fire & Paper Dissolve
       if (topTexReady && bottomTexReady) {
         gl.viewport(0, 0, W, H);
-        gl.uniform2f(uMouseLoc, currentMouse.x, currentMouse.y);
-        gl.uniform1f(uHoverLoc, hoverAmount);
+        gl.uniform1f(uBurnProgressLoc, currentBurn);
         gl.uniform1f(uTimeLoc, clock);
-        gl.uniform1i(uModeLoc, burnMode === 'reveal' ? 0 : 1);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
 
-      // Render Floating Embers & Sparks
+      // Render Particle Canvas (Black Paper Ash Flakes + Sparks Flying Away in Wind)
       pCtx.clearRect(0, 0, W, H);
+
+      // 1. Draw Crumbling Black Paper Ash Flakes (Hawa me udte hue kaale paper ke tukde)
+      for (let i = ashFlakes.length - 1; i >= 0; i--) {
+        const a = ashFlakes[i];
+        a.x += a.vx + Math.sin(clock * 1.8 + a.y * 0.02) * 0.7; // Wind flutter
+        a.y += a.vy;
+        a.vy -= 0.015; // Gentle upward thermal lift
+        a.rotation += a.rotSpeed;
+        a.flipAngle += a.flipSpeed;
+        a.life -= a.decay;
+
+        if (a.life <= 0 || a.y < -30 || a.x < -30 || a.x > W + 30) {
+          ashFlakes.splice(i, 1);
+          continue;
+        }
+
+        const alpha = Math.min(1.0, a.life * 1.4);
+        const flipScale = Math.abs(Math.cos(a.flipAngle)); // 3D tumbling perspective
+
+        pCtx.save();
+        pCtx.translate(a.x, a.y);
+        pCtx.rotate(a.rotation);
+        pCtx.scale(1.0, Math.max(0.2, flipScale));
+
+        // Black carbon ash flake body
+        pCtx.beginPath();
+        pCtx.rect(-a.width / 2, -a.height / 2, a.width, a.height);
+        pCtx.fillStyle = `rgba(${a.colorR}, ${a.colorG}, ${a.colorB}, ${alpha * 0.92})`;
+        pCtx.fill();
+
+        // Glowing red/orange ember edge on the black flake
+        if (a.hasEmberGlow && a.life > 0.4) {
+          pCtx.strokeStyle = `rgba(255, 75, 10, ${alpha * (a.life - 0.3)})`;
+          pCtx.lineWidth = 1.2;
+          pCtx.stroke();
+        }
+        pCtx.restore();
+      }
+
+      // 2. Draw Fiery Sparks & Embers
       for (let i = sparks.length - 1; i >= 0; i--) {
         const s = sparks[i];
-        s.x += s.vx + Math.sin(clock * 2.2 + s.y * 0.04) * 0.45;
+        s.x += s.vx + Math.sin(clock * 2.2 + s.y * 0.04) * 0.5;
         s.y += s.vy;
-        s.vy -= 0.022; // Gentle upward thermal draft
-        s.vx *= 0.985;
+        s.vy -= 0.022; // Rising draft
         s.life -= s.decay;
 
         if (s.life <= 0 || s.y < -20 || s.x < -20 || s.x > W + 20) {
@@ -555,14 +535,14 @@ export default function App() {
         pCtx.save();
         pCtx.beginPath();
         pCtx.arc(s.x, s.y, s.size * 2.0, 0, Math.PI * 2);
-        pCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.30})`;
+        pCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.28})`;
         pCtx.fill();
 
         pCtx.beginPath();
         pCtx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
         pCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
         pCtx.shadowColor = `rgb(${r}, ${g}, ${b})`;
-        pCtx.shadowBlur = 7;
+        pCtx.shadowBlur = 6;
         pCtx.fill();
         pCtx.restore();
       }
@@ -572,21 +552,21 @@ export default function App() {
 
     animId = requestAnimationFrame(renderLoop);
 
+    // Interactive Hover: Moving mouse vertically guides the fire up the paper
     const handleMouseMove = (e) => {
       const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width;
-      const y = (e.clientY - rect.top) / rect.height;
-      targetMouse.x = Math.max(0, Math.min(1, x));
-      targetMouse.y = Math.max(0, Math.min(1, y));
-      isHovered = true;
+      const mouseY = (e.clientY - rect.top) / rect.height;
+      // Moving mouse upward (smaller mouseY) burns paper further up!
+      const burnFromHover = Math.max(0.08, Math.min(1.0, (1.0 - mouseY) * 1.1));
+      targetBurn = Math.max(targetBurn, burnFromHover); // Stays burned like real paper
     };
 
     const handleMouseEnter = () => {
-      isHovered = true;
+      isHovering = true;
     };
 
     const handleMouseLeave = () => {
-      isHovered = false;
+      isHovering = false;
     };
 
     canvas.addEventListener('mousemove', handleMouseMove);
@@ -599,7 +579,7 @@ export default function App() {
       canvas.removeEventListener('mouseenter', handleMouseEnter);
       canvas.removeEventListener('mouseleave', handleMouseLeave);
     };
-  }, [burnMode]);
+  }, []);
 
   return (
     <div className="portfolio-root">
@@ -622,7 +602,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* 2. Interactive Burning Paper Stage with Reference-Matched Fire Aesthetic */}
+      {/* 2. Realistic Physical Paper Combustion Stage */}
       <main className="hero-viewport">
         <div className="stage-outer-container">
           
@@ -635,6 +615,7 @@ export default function App() {
               className="burning-shader-canvas"
             />
 
+            {/* Overlaid Particle Canvas for Flying Black Paper Ash & Sparks */}
             <canvas 
               ref={particlesCanvasRef} 
               width={460} 
@@ -646,28 +627,19 @@ export default function App() {
           {/* Minimal Icon-Only Floating Dock (No Text Names) */}
           <div className="burn-controls-toolbar">
             <button 
-              className={`icon-only-btn ${burnMode === 'reveal' ? 'active-icon-btn' : ''}`}
-              onClick={() => setBurnMode('reveal')}
-              aria-label="Burn to Reveal"
-              title="Burn to Reveal"
+              className={`icon-only-btn ${isAutoBurning ? 'active-icon-btn' : ''}`}
+              onClick={() => triggerAutoBurnRef.current && triggerAutoBurnRef.current()}
+              aria-label={isAutoBurning ? "Pause Fire" : "Burn Sheet"}
+              title={isAutoBurning ? "Pause Fire" : "Burn Paper (Auto)"}
             >
-              <Flame size={18} />
-            </button>
-
-            <button 
-              className={`icon-only-btn ${burnMode === 'torch' ? 'active-icon-btn' : ''}`}
-              onClick={() => setBurnMode('torch')}
-              aria-label="Torch Mode"
-              title="Torch Mode"
-            >
-              <Sparkles size={18} />
+              {isAutoBurning ? <Pause size={17} /> : <Flame size={18} />}
             </button>
 
             <button 
               className="icon-only-btn reset-icon-btn"
               onClick={() => resetBurnRef.current && resetBurnRef.current()}
-              aria-label="Reset Sheet"
-              title="Reset Sheet"
+              aria-label="Restore Sheet"
+              title="Restore Sheet"
             >
               <RotateCcw size={17} />
             </button>
@@ -681,8 +653,9 @@ export default function App() {
         <div className="minimal-zone-content">
           <span className="tiny-label">// MINIMAL PORTFOLIO 2026</span>
           <p className="minimal-instruction">
-            Realistic volumetric burning paper simulation: craggy black charcoal crust, 
-            rising flame tongues, warm scorched sienna halos, and gentle convection embers.
+            Realistic physical paper combustion: natural creeping fire front (no circles), 
+            tall upward-licking flames, craggy black carbon crust, and black paper ash flakes 
+            crumbling and blowing away in the wind to reveal the portrait underneath.
           </p>
         </div>
       </section>
