@@ -6,7 +6,6 @@ export default function App() {
   const [lastScrollY, setLastScrollY] = useState(0);
 
   const canvasRef = useRef(null);
-  const containerRef = useRef(null);
 
   // Auto-hide transparent navbar on scroll
   useEffect(() => {
@@ -24,34 +23,27 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  // Authentic Burning Paper Simulation Engine
+  // Bulletproof Direct Burning Paper Engine
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
     const topImg = new Image();
-
-    // Burn spots and rising sparks
-    let burnSpots = [];
-    let sparks = [];
-    let flames = [];
-    let mouse = { x: -1000, y: -1000, prevX: -1000, prevY: -1000, active: false };
+    let isStarted = false;
     let animId;
     let time = 0;
 
-    // Offscreen mask canvas for burning paper cutouts
-    const maskCanvas = document.createElement('canvas');
-    maskCanvas.width = canvas.width;
-    maskCanvas.height = canvas.height;
-    const maskCtx = maskCanvas.getContext('2d');
+    let mouse = { x: 230, y: 340, active: false };
+    let burnSpots = [];
+    let sparks = [];
 
-    // Procedural ragged torn/burned paper radius
+    // Ragged procedural burning paper edge calculation
     const getBurnRadius = (baseR, angle, seed) => {
       return baseR + 
-        Math.sin(angle * 6 + seed) * 10 + 
-        Math.cos(angle * 14 + seed * 1.5) * 6 + 
-        Math.sin(angle * 22) * 3;
+        Math.sin(angle * 5 + seed) * 11 + 
+        Math.cos(angle * 12 + seed * 1.7) * 7 + 
+        Math.sin(angle * 21) * 3;
     };
 
     const handleMouseMove = (e) => {
@@ -59,145 +51,120 @@ export default function App() {
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
-      const dx = x - (mouse.prevX === -1000 ? x : mouse.prevX);
-      const dy = y - (mouse.prevY === -1000 ? y : mouse.prevY);
-      const dist = Math.hypot(dx, dy);
-
       mouse.x = x;
       mouse.y = y;
-      mouse.prevX = x;
-      mouse.prevY = y;
       mouse.active = true;
 
-      // Spawn burn points along path
-      const steps = Math.max(1, Math.min(6, Math.floor(dist / 10)));
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        const bx = x - dx * (1 - t) + (Math.random() - 0.5) * 6;
-        const by = y - dy * (1 - t) + (Math.random() - 0.5) * 6;
-        const radius = 64 + (Math.random() - 0.5) * 14;
+      // Add a persistent burning burn spot along the path
+      burnSpots.push({
+        x,
+        y,
+        radius: 70 + (Math.random() - 0.5) * 16,
+        seed: Math.random() * 30,
+        life: 1.0,
+        decay: 0.012
+      });
 
-        burnSpots.push({
-          x: bx,
-          y: by,
-          radius: radius,
-          seed: Math.random() * 40,
+      // Spawn fiery ember sparks
+      for (let s = 0; s < 3; s++) {
+        const sparkAngle = Math.random() * Math.PI * 2;
+        const sparkDist = 65;
+        sparks.push({
+          x: x + Math.cos(sparkAngle) * sparkDist,
+          y: y + Math.sin(sparkAngle) * sparkDist,
+          vx: (Math.random() - 0.5) * 2.5,
+          vy: -Math.random() * 3.5 - 1.0, // Float up with heat
+          size: Math.random() * 3 + 1.2,
+          color: Math.random() > 0.4 ? '#FFA500' : (Math.random() > 0.5 ? '#FF4500' : '#FFF070'),
           life: 1.0,
-          decay: 0.014 + Math.random() * 0.008
+          decay: Math.random() * 0.04 + 0.02
         });
-
-        // Spawn flying burning sparks from the burning edge
-        for (let s = 0; s < 3; s++) {
-          const sparkAngle = Math.random() * Math.PI * 2;
-          const sparkDist = radius * 0.9;
-          sparks.push({
-            x: bx + Math.cos(sparkAngle) * sparkDist,
-            y: by + Math.sin(sparkAngle) * sparkDist,
-            vx: (Math.random() - 0.5) * 2.5,
-            vy: -Math.random() * 3.2 - 1.2, // Float upwards with heat
-            size: Math.random() * 2.8 + 1.2,
-            color: Math.random() > 0.4 ? '#FFA500' : (Math.random() > 0.5 ? '#FF4500' : '#FFF275'),
-            life: 1.0,
-            decay: Math.random() * 0.035 + 0.02
-          });
-        }
-
-        // Spawn little flame tongues licking around the burn rim
-        if (Math.random() < 0.7) {
-          const flameAngle = Math.random() * Math.PI * 2;
-          flames.push({
-            x: bx + Math.cos(flameAngle) * (radius * 0.95),
-            y: by + Math.sin(flameAngle) * (radius * 0.95),
-            radius: Math.random() * 12 + 6,
-            life: 1.0,
-            decay: 0.08 + Math.random() * 0.05
-          });
-        }
       }
+    };
+
+    const handleMouseEnter = () => {
+      mouse.active = true;
     };
 
     const handleMouseLeave = () => {
       mouse.active = false;
-      mouse.x = -1000;
-      mouse.y = -1000;
-      mouse.prevX = -1000;
-      mouse.prevY = -1000;
     };
 
-    const startAnimation = () => {
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseenter', handleMouseEnter);
+    canvas.addEventListener('mouseleave', handleMouseLeave);
+
+    const start = () => {
+      if (isStarted) return;
+      isStarted = true;
+
       const width = canvas.width;
       const height = canvas.height;
 
       const render = () => {
-        time += 0.045;
+        time += 0.05;
 
-        // 1. Draw burning jagged cutout mask
-        maskCtx.clearRect(0, 0, width, height);
+        // 1. Draw intact Top Paper Layer
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(topImg, 0, 0, width, height);
 
+        // 2. Cut Burn Holes through Paper Layer using 'destination-out'
+        ctx.globalCompositeOperation = 'destination-out';
+
+        // Cut holes for lingering burn spots
         for (let i = burnSpots.length - 1; i >= 0; i--) {
-          const spot = burnSpots[i];
-          spot.life -= spot.decay;
+          const b = burnSpots[i];
+          b.life -= b.decay;
 
-          if (spot.life <= 0) {
+          if (b.life <= 0) {
             burnSpots.splice(i, 1);
             continue;
           }
 
-          const curRadius = spot.radius * (0.65 + spot.life * 0.35);
+          const curR = b.radius * (0.65 + b.life * 0.35);
 
-          // Draw ragged burnt paper hole
-          maskCtx.fillStyle = '#FFFFFF';
-          maskCtx.beginPath();
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
           const points = 32;
           for (let p = 0; p <= points; p++) {
             const angle = (p / points) * Math.PI * 2;
-            const r = getBurnRadius(curRadius, angle, spot.seed + time);
-            const px = spot.x + Math.cos(angle) * r;
-            const py = spot.y + Math.sin(angle) * r;
-            if (p === 0) maskCtx.moveTo(px, py);
-            else maskCtx.lineTo(px, py);
+            const r = getBurnRadius(curR, angle, b.seed + time);
+            const px = b.x + Math.cos(angle) * r;
+            const py = b.y + Math.sin(angle) * r;
+            if (p === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
           }
-          maskCtx.closePath();
-          maskCtx.fill();
+          ctx.closePath();
+          ctx.fill();
         }
 
-        // Active burn spot at current cursor position
-        if (mouse.active && mouse.x > 0 && mouse.y > 0) {
-          const activeR = 75 + Math.sin(time * 7) * 5;
-          maskCtx.fillStyle = '#FFFFFF';
-          maskCtx.beginPath();
+        // Active burning hole at current mouse cursor
+        if (mouse.active) {
+          const activeR = 76 + Math.sin(time * 7) * 6;
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
           const points = 36;
           for (let p = 0; p <= points; p++) {
             const angle = (p / points) * Math.PI * 2;
             const r = getBurnRadius(activeR, angle, time * 2);
             const px = mouse.x + Math.cos(angle) * r;
             const py = mouse.y + Math.sin(angle) * r;
-            if (p === 0) maskCtx.moveTo(px, py);
-            else maskCtx.lineTo(px, py);
+            if (p === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
           }
-          maskCtx.closePath();
-          maskCtx.fill();
+          ctx.closePath();
+          ctx.fill();
         }
 
-        // 2. Render Main Display Canvas
-        ctx.clearRect(0, 0, width, height);
-
-        // A. Draw Top Anime Image (Paper layer)
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.drawImage(topImg, 0, 0, width, height);
-
-        // B. Burn Hole through paper layer using destination-out
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.drawImage(maskCanvas, 0, 0);
-
-        // C. Draw Fiery Charred Embers & Flames along the Burnt Paper Edges
+        // 3. Draw Fiery Glowing Charcoal & Fire Embers around the Burn Rim
         ctx.globalCompositeOperation = 'source-over';
 
-        const drawBurntEdge = (x, y, radius, seed, alpha) => {
+        const drawFieryRim = (x, y, radius, seed, alpha) => {
           if (alpha <= 0.05) return;
           const points = 36;
 
-          // 1. Charred Black Ash Edge (burnt paper carbon)
+          // A. Charred Black Ash (Burnt Carbon Edge)
           ctx.save();
           ctx.beginPath();
           for (let p = 0; p <= points; p++) {
@@ -209,15 +176,15 @@ export default function App() {
             else ctx.lineTo(px, py);
           }
           ctx.closePath();
-          ctx.strokeStyle = `rgba(20, 10, 8, ${Math.min(0.95, alpha)})`;
-          ctx.lineWidth = 7;
+          ctx.strokeStyle = `rgba(18, 8, 6, ${Math.min(0.95, alpha)})`;
+          ctx.lineWidth = 8;
           ctx.stroke();
           ctx.restore();
 
-          // 2. Glowing Fiery Orange & Red Ember Rim
+          // B. Glowing Fire Embers (Blazing Orange/Red Fire)
           ctx.save();
           ctx.shadowColor = '#FF3700';
-          ctx.shadowBlur = 16;
+          ctx.shadowBlur = 18;
           ctx.beginPath();
           for (let p = 0; p <= points; p++) {
             const angle = (p / points) * Math.PI * 2;
@@ -228,54 +195,33 @@ export default function App() {
             else ctx.lineTo(px, py);
           }
           ctx.closePath();
-          ctx.strokeStyle = `rgba(255, 75, 0, ${alpha})`;
-          ctx.lineWidth = 3.5;
+          ctx.strokeStyle = `rgba(255, 80, 0, ${alpha})`;
+          ctx.lineWidth = 4;
           ctx.stroke();
 
-          // 3. Blazing Golden Heat Crests
+          // C. Golden Hot Heat Highlight
           ctx.shadowColor = '#FFD700';
-          ctx.shadowBlur = 9;
-          ctx.strokeStyle = `rgba(255, 235, 130, ${alpha * 0.9})`;
+          ctx.shadowBlur = 8;
+          ctx.strokeStyle = `rgba(255, 235, 120, ${alpha * 0.95})`;
           ctx.lineWidth = 1.8;
           ctx.stroke();
           ctx.restore();
         };
 
-        // Draw burnt edges for all burn spots
+        // Render fiery rims for burn spots
         for (let i = 0; i < burnSpots.length; i++) {
           const b = burnSpots[i];
           const curR = b.radius * (0.65 + b.life * 0.35);
-          drawBurntEdge(b.x, b.y, curR, b.seed, b.life);
+          drawFieryRim(b.x, b.y, curR, b.seed, b.life);
         }
 
-        // Draw active burn edge at mouse
-        if (mouse.active && mouse.x > 0 && mouse.y > 0) {
-          const curR = 75 + Math.sin(time * 7) * 5;
-          drawBurntEdge(mouse.x, mouse.y, curR, time * 2, 1.0);
+        // Render fiery rim at active mouse
+        if (mouse.active) {
+          const activeR = 76 + Math.sin(time * 7) * 6;
+          drawFieryRim(mouse.x, mouse.y, activeR, time * 2, 1.0);
         }
 
-        // D. Draw little flame tongues
-        for (let i = flames.length - 1; i >= 0; i--) {
-          const fl = flames[i];
-          fl.life -= fl.decay;
-          fl.y -= 1.2;
-
-          if (fl.life <= 0) {
-            flames.splice(i, 1);
-            continue;
-          }
-
-          ctx.save();
-          ctx.shadowColor = '#FF4500';
-          ctx.shadowBlur = 10;
-          ctx.fillStyle = `rgba(255, ${Math.floor(100 + fl.life * 140)}, 0, ${fl.life * 0.75})`;
-          ctx.beginPath();
-          ctx.arc(fl.x, fl.y, fl.radius * fl.life, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        }
-
-        // E. Draw Rising Fiery Sparks
+        // 4. Render Rising Heat Sparks
         for (let i = sparks.length - 1; i >= 0; i--) {
           const spk = sparks[i];
           spk.x += spk.vx;
@@ -289,7 +235,7 @@ export default function App() {
 
           ctx.save();
           ctx.shadowColor = spk.color;
-          ctx.shadowBlur = 7;
+          ctx.shadowBlur = 8;
           ctx.fillStyle = spk.color;
           ctx.globalAlpha = spk.life;
           ctx.beginPath();
@@ -304,25 +250,17 @@ export default function App() {
       render();
     };
 
-    // Robust image loading check
-    topImg.onload = startAnimation;
+    topImg.onload = start;
     topImg.src = '/assets/anime_layer.png';
     if (topImg.complete) {
-      startAnimation();
-    }
-
-    const container = containerRef.current;
-    if (container) {
-      container.addEventListener('mousemove', handleMouseMove);
-      container.addEventListener('mouseleave', handleMouseLeave);
+      start();
     }
 
     return () => {
       cancelAnimationFrame(animId);
-      if (container) {
-        container.removeEventListener('mousemove', handleMouseMove);
-        container.removeEventListener('mouseleave', handleMouseLeave);
-      }
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('mouseenter', handleMouseEnter);
+      canvas.removeEventListener('mouseleave', handleMouseLeave);
     };
   }, []);
 
@@ -349,7 +287,7 @@ export default function App() {
 
       {/* 2. Immersive Hero Viewport (Burning Paper Reveal) */}
       <main className="hero-viewport">
-        <div className="art-stage-wrapper" ref={containerRef}>
+        <div className="art-stage-wrapper">
           {/* Base Layer: Real Photo Underneath */}
           <div className="base-photo-layer">
             <img 
@@ -359,7 +297,7 @@ export default function App() {
             />
           </div>
 
-          {/* Top Layer: Burning Paper Canvas with Glowing Fire Embers */}
+          {/* Top Layer: Burning Paper Canvas with Fiery Embers */}
           <canvas 
             ref={canvasRef} 
             width={460} 
