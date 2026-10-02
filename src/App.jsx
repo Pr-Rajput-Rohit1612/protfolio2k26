@@ -33,7 +33,7 @@ export default function App() {
     if (!ctx) return;
 
     const topImg = new Image();
-    topImg.src = '/assets/dr_doom_overlay.jpg';
+    topImg.src = '/assets/dr_doom_overlay.jpg?v=2';
 
     // 0.5cm is ~18px to 20px on standard screen resolution
     const BOX_SIZE = 18; 
@@ -257,7 +257,7 @@ export default function App() {
         <div className="art-stage-wrapper" ref={containerRef}>
           {/* Underneath Layer: Robert Downey Jr. (Matching Pose) */}
           <img 
-            src="/assets/rdj_underlay.jpg" 
+            src="/assets/rdj_underlay.jpg?v=2" 
             alt="Robert Downey Jr." 
             className="stage-img"
           />
