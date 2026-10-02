@@ -24,63 +24,68 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  // Broken Half-Centimeter Boxes Interactive Canvas Engine
+  // Broken Half-Centimeter Boxes Dissolve Effect:
+  // Doctor Doom mask on top -> dissolves into sparking broken boxes on hover -> reveals Robert Downey Jr. underneath!
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
     const topImg = new Image();
-    topImg.src = '/assets/anime_layer.png';
+    topImg.src = '/assets/dr_doom_overlay.jpg';
 
-    let mouse = { x: -1000, y: -1000, active: false };
+    // 0.5cm is ~18px to 20px on standard screen resolution
+    const BOX_SIZE = 18; 
     let animId;
-    let sparks = [];
+    let mouse = { x: -1000, y: -1000, targetX: -1000, targetY: -1000 };
+    let isHovering = false;
+    let hoverRadius = 140; // Area of effect around cursor
 
-    // Half centimeter in screen pixels is approx 18-20px
-    const BOX_SIZE = 18;
-    const BREAK_RADIUS = 110;
+    // Electrical / Mystic Doom Green & Gold Sparks
+    const sparks = [];
+    const maxSparks = 45;
 
-    // Track mouse coordinates on canvas
-    const handleMouseMove = (e) => {
-      const rect = canvas.getBoundingClientRect();
-      mouse.x = e.clientX - rect.left;
-      mouse.y = e.clientY - rect.top;
-      mouse.active = true;
-
-      // Spawn random micro sparks on mouse move
-      if (Math.random() < 0.6) {
-        sparks.push({
-          x: mouse.x + (Math.random() - 0.5) * BREAK_RADIUS * 1.2,
-          y: mouse.y + (Math.random() - 0.5) * BREAK_RADIUS * 1.2,
-          size: Math.random() * 3 + 1,
-          color: Math.random() > 0.4 ? '#38BDF8' : '#FB7185',
-          vx: (Math.random() - 0.5) * 3,
-          vy: (Math.random() - 0.5) * 3,
-          life: 1.0,
-          decay: Math.random() * 0.05 + 0.03
-        });
-      }
+    const createSpark = (x, y) => {
+      if (sparks.length >= maxSparks) return;
+      sparks.push({
+        x: x + (Math.random() - 0.5) * BOX_SIZE,
+        y: y + (Math.random() - 0.5) * BOX_SIZE,
+        vx: (Math.random() - 0.5) * 4.5,
+        vy: (Math.random() - 0.5) * 4.5,
+        size: Math.random() * 2.5 + 1.2,
+        life: 1.0,
+        decay: Math.random() * 0.04 + 0.025,
+        color: Math.random() > 0.4 ? 'rgba(0, 255, 136, 0.95)' : 'rgba(255, 215, 0, 0.95)' // Doom Green & Gold
+      });
     };
 
-    const handleMouseLeave = () => {
-      mouse.active = false;
-      mouse.x = -1000;
-      mouse.y = -1000;
+    // Resize canvas to match display size
+    const resizeCanvas = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
     };
 
-    topImg.onload = () => {
-      // Set canvas dimensions matching container
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Main render loop
+    const render = () => {
+      // Smooth lerp mouse coordinates
+      mouse.x += (mouse.targetX - mouse.x) * 0.18;
+      mouse.y += (mouse.targetY - mouse.y) * 0.18;
+
       const width = canvas.width;
       const height = canvas.height;
 
-      const cols = Math.ceil(width / BOX_SIZE);
-      const rows = Math.ceil(height / BOX_SIZE);
+      ctx.clearRect(0, 0, width, height);
 
-      const render = () => {
-        ctx.clearRect(0, 0, width, height);
+      if (topImg.complete && topImg.naturalWidth > 0) {
+        const cols = Math.ceil(width / BOX_SIZE);
+        const rows = Math.ceil(height / BOX_SIZE);
 
-        // Render each half-centimeter box
         for (let r = 0; r < rows; r++) {
           for (let c = 0; c < cols; c++) {
             const bx = c * BOX_SIZE;
@@ -88,15 +93,22 @@ export default function App() {
             const centerX = bx + BOX_SIZE / 2;
             const centerY = by + BOX_SIZE / 2;
 
-            const dist = Math.hypot(mouse.x - centerX, mouse.y - centerY);
+            // Distance from mouse center
+            const dx = centerX - mouse.x;
+            const dy = centerY - mouse.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
 
-            if (mouse.active && dist < BREAK_RADIUS) {
-              // Normalized breakdown factor: 1.0 at center, 0.0 at radius edge
-              const breakIntensity = 1 - (dist / BREAK_RADIUS);
+            if (isHovering && dist < hoverRadius) {
+              // Normalized break intensity (0 = edge, 1 = direct center of cursor)
+              const breakIntensity = 1 - (dist / hoverRadius);
 
-              // Inside center: tile is completely dissolved/broken away
+              // Inside active cursor core: completely dissolved to reveal RDJ underneath!
               if (breakIntensity > 0.65) {
-                continue; // Don't draw top layer tile -> reveals bottom real photo!
+                // Occasional spark along breaking seam
+                if (Math.random() < 0.12) {
+                  createSpark(centerX, centerY);
+                }
+                continue;
               }
 
               // In the breaking perimeter edge: sparking broken fractured square
@@ -126,8 +138,8 @@ export default function App() {
                 -BOX_SIZE / 2, -BOX_SIZE / 2, BOX_SIZE, BOX_SIZE
               );
 
-              // Draw sparking neon box borders on broken pieces
-              ctx.strokeStyle = Math.random() > 0.5 ? 'rgba(56, 189, 248, 0.85)' : 'rgba(244, 63, 94, 0.85)';
+              // Draw sparking neon box borders on broken pieces (Doom Emerald Green & Gold)
+              ctx.strokeStyle = Math.random() > 0.5 ? 'rgba(0, 255, 136, 0.85)' : 'rgba(255, 215, 0, 0.85)';
               ctx.lineWidth = 1.5;
               ctx.strokeRect(-BOX_SIZE / 2, -BOX_SIZE / 2, BOX_SIZE, BOX_SIZE);
 
@@ -168,35 +180,62 @@ export default function App() {
 
         ctx.globalAlpha = 1.0;
         animId = requestAnimationFrame(render);
-      };
-
-      render();
+      } else {
+        animId = requestAnimationFrame(render);
+      }
     };
 
-    const container = containerRef.current;
-    if (container) {
-      container.addEventListener('mousemove', handleMouseMove);
-      container.addEventListener('mouseleave', handleMouseLeave);
+    topImg.onload = () => {
+      animId = requestAnimationFrame(render);
+    };
+
+    const handleMouseMove = (e) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      mouse.targetX = e.clientX - rect.left;
+      mouse.targetY = e.clientY - rect.top;
+      isHovering = true;
+    };
+
+    const handleMouseEnter = (e) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      mouse.targetX = e.clientX - rect.left;
+      mouse.targetY = e.clientY - rect.top;
+      mouse.x = mouse.targetX;
+      mouse.y = mouse.targetY;
+      isHovering = true;
+    };
+
+    const handleMouseLeave = () => {
+      isHovering = false;
+      mouse.targetX = -1000;
+      mouse.targetY = -1000;
+    };
+
+    const containerEl = containerRef.current;
+    if (containerEl) {
+      containerEl.addEventListener('mousemove', handleMouseMove);
+      containerEl.addEventListener('mouseenter', handleMouseEnter);
+      containerEl.addEventListener('mouseleave', handleMouseLeave);
     }
 
     return () => {
       cancelAnimationFrame(animId);
-      if (container) {
-        container.removeEventListener('mousemove', handleMouseMove);
-        container.removeEventListener('mouseleave', handleMouseLeave);
+      window.removeEventListener('resize', resizeCanvas);
+      if (containerEl) {
+        containerEl.removeEventListener('mousemove', handleMouseMove);
+        containerEl.removeEventListener('mouseenter', handleMouseEnter);
+        containerEl.removeEventListener('mouseleave', handleMouseLeave);
       }
     };
   }, []);
 
   return (
     <div className="portfolio-root">
-      {/* 1. Ultra-clean Simple Transparent Navbar (Zero Background) */}
+      {/* 1. Pure Transparent Navbar (Zero Background, No Name) */}
       <header className={`pure-navbar ${navVisible ? 'nav-visible' : 'nav-hidden'}`}>
         <div className="nav-container">
-          <div className="nav-logo">
-            <span>ROHIT</span>
-          </div>
-
           <nav className="nav-menu">
             <a href="#about" className="clean-nav-link">About</a>
             <a href="#projects" className="clean-nav-link">Projects</a>
@@ -207,41 +246,37 @@ export default function App() {
               rel="noreferrer" 
               className="clean-nav-link github-link"
             >
-              GitHub â†—
+              GitHub ↗
             </a>
           </nav>
         </div>
       </header>
 
-      {/* 2. Immersive Hero Stage (Clean, No Clutter Text) */}
+      {/* 2. Hero Viewport: Doctor Doom Mask with Broken Boxes Revealing Robert Downey Jr. */}
       <main className="hero-viewport">
         <div className="art-stage-wrapper" ref={containerRef}>
-          {/* Base Layer: Real Photo Underneath */}
-          <div className="base-photo-layer">
-            <img 
-              src="/assets/real_layer.jpg" 
-              alt="Real Face" 
-              className="stage-img"
-            />
-          </div>
+          {/* Underneath Layer: Robert Downey Jr. (Matching Pose) */}
+          <img 
+            src="/assets/rdj_underlay.jpg" 
+            alt="Robert Downey Jr." 
+            className="stage-img"
+          />
 
-          {/* Top Layer: Broken Sparks Box Canvas (Destructible Half-cm squares) */}
+          {/* Top Layer Canvas: Doctor Doom Mask breaking into half-centimeter boxes */}
           <canvas 
             ref={canvasRef} 
-            width={460} 
-            height={680} 
-            className="sparks-breakout-canvas"
+            className="boxes-dissolve-canvas"
           />
         </div>
       </main>
 
-      {/* Minimalist Scroll Demonstration Area */}
+      {/* Demo Scroll Content to test Navbar Auto-Hide */}
       <section id="about" className="scroll-demonstration-zone">
         <div className="minimal-zone-content">
-          <span className="tiny-label">// SCROLL TEST ZONE</span>
+          <span className="tiny-label">// DOCTOR DOOM // ROBERT DOWNEY JR.</span>
           <p className="minimal-instruction">
-            Scroll down to watch the transparent navbar automatically vanish.
-            Scroll up to make it glide back.
+            Hover over Doctor Doom's mask to shatter the iron visage into sparking broken boxes, 
+            revealing Robert Downey Jr. underneath.
           </p>
         </div>
       </section>
