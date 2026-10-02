@@ -168,55 +168,7 @@ body {
   z-index: 5;
 }
 
-/* 3. Pure Icon-Only Floating Dock (No Text Names) */
-.burn-controls-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(14, 16, 22, 0.55);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  padding: 6px 12px;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.5);
-}
-
-.icon-only-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: transparent;
-  border: 1px solid transparent;
-  color: rgba(255, 255, 255, 0.55);
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.icon-only-btn:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
-  transform: translateY(-2px);
-}
-
-.icon-only-btn.active-icon-btn {
-  background: rgba(255, 85, 17, 0.22);
-  color: #ffb84d;
-  border: 1px solid rgba(255, 184, 77, 0.4);
-  box-shadow: 0 0 16px rgba(255, 85, 17, 0.28);
-  transform: translateY(-1px);
-}
-
-.icon-only-btn.reset-icon-btn:hover {
-  color: #ff6633;
-  background: rgba(255, 85, 17, 0.1);
-  transform: rotate(-45deg) translateY(-1px);
-}
-
-/* 4. Minimal Scroll Demonstration Zone */
+/* 3. Minimal Scroll Demonstration Zone */
 .scroll-demonstration-zone {
   min-height: 90vh;
   display: flex;
