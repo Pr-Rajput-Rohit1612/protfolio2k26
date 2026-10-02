@@ -124,12 +124,12 @@ body {
   gap: 18px;
 }
 
-/* Crisp 8px Radius Editorial Stage Frame (No Bubbly Big Radius) */
+/* Crisp 8px Radius Frame matching reference proportions */
 .art-stage-wrapper {
   position: relative;
   width: 460px;
   height: 680px;
-  border-radius: 8px; /* Refined crisp radius */
+  border-radius: 8px;
   overflow: hidden;
   box-shadow: 
     0 24px 60px rgba(0, 0, 0, 0.88),
@@ -168,7 +168,7 @@ body {
   z-index: 5;
 }
 
-/* 3. Pure Icon-Only Floating Dock (No Text Names) */
+/* 3. Pure Icon-Only Floating Dock */
 .burn-controls-toolbar {
   display: flex;
   align-items: center;
