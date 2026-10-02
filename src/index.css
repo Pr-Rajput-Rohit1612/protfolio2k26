@@ -1,4 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+/* Pure Clean Futuristic Aesthetic for protfolio2k26 */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg-primary: #07080a;
+  --bg-card: rgba(14, 16, 22, 0.7);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --text-primary: #f0f2f5;
+  --text-secondary: #8c93a0;
+  --accent-gold: #ffb84d;
+  --accent-fire: #ff5511;
+  --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
 
 * {
   margin: 0;
@@ -7,37 +20,34 @@
 }
 
 body {
-  background-color: #050608;
-  color: #FFFFFF;
-  font-family: 'Space Grotesk', -apple-system, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-main);
   overflow-x: hidden;
-  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .portfolio-root {
   min-height: 100vh;
-  background-color: #050608;
+  display: flex;
+  flex-direction: column;
   position: relative;
+  background: radial-gradient(circle at 50% 25%, rgba(25, 28, 38, 0.5) 0%, #07080a 75%);
 }
 
-/* =========================================================
-   1. PURE TRANSPARENT NAVBAR (ZERO BACKGROUND, NO NAME)
-   ========================================================= */
+/* 1. Pure Transparent Navbar (Zero Background, No Pill, No Name) */
 .pure-navbar {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
+  width: 100%;
   z-index: 1000;
   background: transparent !important;
   border: none !important;
-  padding: 28px 48px;
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-  pointer-events: none;
-}
-
-.pure-navbar * {
-  pointer-events: auto;
+  box-shadow: none !important;
+  padding: 28px 0;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
 }
 
 .nav-visible {
@@ -46,16 +56,17 @@ body {
 }
 
 .nav-hidden {
-  transform: translateY(-120%);
+  transform: translateY(-100%);
   opacity: 0;
+  pointer-events: none;
 }
 
 .nav-container {
-  max-width: 1300px;
+  max-width: 1100px;
   margin: 0 auto;
+  padding: 0 40px;
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .nav-menu {
@@ -65,87 +76,212 @@ body {
 }
 
 .clean-nav-link {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.65);
   text-decoration: none;
-  font-size: 14px;
+  font-size: 0.92rem;
   font-weight: 500;
-  letter-spacing: 0.06em;
-  transition: color 0.2s ease;
+  letter-spacing: 0.03em;
+  transition: color 0.25s ease, text-shadow 0.25s ease;
 }
 
 .clean-nav-link:hover {
-  color: #FFFFFF;
+  color: #ffffff;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.45);
 }
 
 .github-link {
-  color: #FF5500;
+  color: rgba(255, 184, 77, 0.85);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
 }
 
-/* =========================================================
-   2. IMMERSIVE HERO VIEWPORT (BURNING PAPER SHADER STAGE)
-   ========================================================= */
+.github-link:hover {
+  color: #ffb84d;
+  text-shadow: 0 0 14px rgba(255, 184, 77, 0.6);
+}
+
+/* 2. Hero Viewport with Artwork & Particle System */
 .hero-viewport {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 100px 20px 40px;
   position: relative;
-  padding: 60px 20px;
-  background: radial-gradient(circle at center, #180D14 0%, #050608 72%);
+}
+
+.stage-outer-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
 }
 
 .art-stage-wrapper {
   position: relative;
   width: 460px;
   height: 680px;
-  border-radius: 4px;
-  overflow: hidden;
-  cursor: crosshair;
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.95);
+  border-radius: 18px;
+  overflow: visible;
+  box-shadow: 
+    0 24px 60px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+  background: #000;
+  transition: transform 0.3s ease;
+}
+
+.art-stage-wrapper:hover {
+  box-shadow: 
+    0 32px 75px rgba(0, 0, 0, 0.9),
+    0 0 35px rgba(255, 85, 17, 0.15),
+    0 0 0 1px rgba(255, 184, 77, 0.2);
 }
 
 .burning-shader-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   display: block;
+  border-radius: 18px;
+  cursor: crosshair;
 }
 
-/* =========================================================
-   3. SCROLL DEMO AREA (TEST NAVBAR)
-   ========================================================= */
+.sparks-particle-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 18px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Interaction Hint Pill */
+.burn-interaction-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 16px;
+  background: rgba(10, 12, 16, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.75);
+  pointer-events: none;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.3s ease;
+}
+
+.flame-pulse-icon {
+  color: #ff5511;
+  animation: pulseFlame 1.8s infinite alternate ease-in-out;
+}
+
+@keyframes pulseFlame {
+  0% { transform: scale(0.9); opacity: 0.7; filter: drop-shadow(0 0 2px #ff5511); }
+  100% { transform: scale(1.15); opacity: 1; filter: drop-shadow(0 0 8px #ffb84d); }
+}
+
+/* 3. Interactive Toolbar Controls */
+.burn-controls-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(14, 16, 22, 0.6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 6px 8px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+
+.mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: var(--font-main);
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mode-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mode-btn.active-mode {
+  background: rgba(255, 85, 17, 0.16);
+  color: #ffb84d;
+  border: 1px solid rgba(255, 184, 77, 0.3);
+  box-shadow: 0 0 16px rgba(255, 85, 17, 0.2);
+}
+
+.mode-btn.reset-btn:hover {
+  color: #ff7744;
+  background: rgba(255, 85, 17, 0.08);
+}
+
+/* 4. Minimal Scroll Demonstration Zone */
 .scroll-demonstration-zone {
-  min-height: 90vh;
-  background: #07080C;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  min-height: 80vh;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: linear-gradient(180deg, transparent 0%, rgba(12, 14, 20, 0.7) 100%);
   padding: 60px 20px;
 }
 
 .minimal-zone-content {
+  max-width: 580px;
   text-align: center;
-  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
 }
 
 .tiny-label {
-  font-size: 11px;
-  letter-spacing: 0.15em;
-  color: rgba(255, 255, 255, 0.3);
-  display: block;
-  margin-bottom: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--accent-gold);
+  letter-spacing: 0.12em;
 }
 
 .minimal-instruction {
-  font-size: 15px;
-  color: rgba(255, 255, 255, 0.5);
-  line-height: 1.6;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.7;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .art-stage-wrapper {
-    width: 320px;
-    height: 480px;
+    width: 92vw;
+    height: calc(92vw * 1.48);
+  }
+  .burning-shader-canvas, .sparks-particle-canvas {
+    width: 100%;
+    height: 100%;
   }
   .nav-menu {
     gap: 20px;
