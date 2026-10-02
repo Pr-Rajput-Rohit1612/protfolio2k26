@@ -4,31 +4,39 @@ import './index.css';
 
 export default function App() {
   const [navVisible, setNavVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
   const [burnMode, setBurnMode] = useState('reveal'); // 'reveal' or 'torch'
 
   const canvasRef = useRef(null);
   const particlesCanvasRef = useRef(null);
   const burnMapCanvasRef = useRef(null);
   const resetBurnRef = useRef(null);
+  const lastScrollY = useRef(0);
 
-  // Auto-hide transparent navbar on scroll
+  // Smooth, Zero-Jank Scroll Handling for Transparent Navbar
   useEffect(() => {
+    let ticking = false;
+
     const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      if (currentScrollY > 30 && currentScrollY > lastScrollY) {
-        setNavVisible(false);
-      } else {
-        setNavVisible(true);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentY = window.scrollY;
+          if (currentY > 40 && currentY > lastScrollY.current) {
+            setNavVisible(false);
+          } else if (currentY < lastScrollY.current || currentY <= 40) {
+            setNavVisible(true);
+          }
+          lastScrollY.current = currentY;
+          ticking = false;
+        });
+        ticking = true;
       }
-      setLastScrollY(currentScrollY);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
+  }, []);
 
-  // Main Photorealistic GPU WebGL Burning Paper & Upward-Licking Flame Simulation
+  // Main Living GPU WebGL Burning Paper Engine (Slow, Hypnotic & Photorealistic)
   useEffect(() => {
     const canvas = canvasRef.current;
     const pCanvas = particlesCanvasRef.current;
@@ -56,20 +64,19 @@ export default function App() {
     bCtx.fillRect(0, 0, bCanvas.width, bCanvas.height);
     burnMapCanvasRef.current = bCanvas;
 
-    // Reset function exposed
+    // Smooth Reset with gentle ember burst
     resetBurnRef.current = () => {
       bCtx.fillStyle = '#000000';
       bCtx.fillRect(0, 0, bCanvas.width, bCanvas.height);
-      // Spawn bursting ash embers
-      for (let i = 0; i < 50; i++) {
+      for (let i = 0; i < 35; i++) {
         sparks.push({
           x: Math.random() * W,
           y: Math.random() * H,
-          vx: (Math.random() - 0.5) * 5,
-          vy: -Math.random() * 4 - 2,
-          size: Math.random() * 2.6 + 1.0,
+          vx: (Math.random() - 0.5) * 2.5,
+          vy: -Math.random() * 2.0 - 0.8, // Slow, gentle upward drift
+          size: Math.random() * 2.2 + 0.8,
           life: 1.0,
-          decay: Math.random() * 0.02 + 0.015,
+          decay: Math.random() * 0.012 + 0.008, // Slow fade
           heat: 1.0
         });
       }
@@ -86,7 +93,7 @@ export default function App() {
       }
     `;
 
-    // Fragment Shader: High-Realism Upward Flame Licks, Jagged Cellulose Char & Glowing Embers
+    // Fragment Shader: Slow, Majestic, Cellulose Paper Burn with Subtle Flame Licks
     const fsSource = `
       precision highp float;
       uniform sampler2D u_top;
@@ -131,20 +138,20 @@ export default function App() {
       // 4-Octave Fractal Brownian Motion
       float fbm(vec2 p) {
         float f = 0.0;
-        f += 0.5000 * snoise(p); p *= 2.04;
+        f += 0.5000 * snoise(p); p *= 2.02;
         f += 0.2500 * snoise(p); p *= 2.03;
         f += 0.1250 * snoise(p); p *= 2.01;
         f += 0.0625 * snoise(p);
         return f;
       }
 
-      // Cellulose paper fiber grain (cellular fissures)
+      // Cellular Paper Grain (Organic cellulose tears)
       float paperGrain(vec2 p) {
-        vec2 q = vec2(fbm(p), fbm(p + vec2(4.3, 1.7)));
-        return fbm(p + 3.0 * q);
+        vec2 q = vec2(fbm(p), fbm(p + vec2(3.1, 1.4)));
+        return fbm(p + 2.5 * q);
       }
 
-      // Cover UV mapping
+      // Aspect-ratio cover mapping
       vec2 coverUV(vec2 uv, vec2 imgSize, vec2 canvasSize) {
         float imgAspect = imgSize.x / imgSize.y;
         float canvasAspect = canvasSize.x / canvasSize.y;
@@ -174,81 +181,77 @@ export default function App() {
         diff.y *= u_aspect;
         float dist = length(diff);
 
-        // Determine base burn amount
+        // Refined, controlled burn radius (not oversized)
         float burnStrength = 0.0;
 
         if (u_mode == 0) {
           float mapVal = texture2D(u_burnMap, uv).r;
-          float activeTip = (1.0 - smoothstep(0.0, u_radius * 0.85, dist)) * u_hover;
+          float activeTip = (1.0 - smoothstep(0.0, u_radius * 0.9, dist)) * u_hover;
           burnStrength = max(mapVal, activeTip);
         } else {
           burnStrength = (1.0 - smoothstep(0.0, u_radius, dist)) * u_hover;
         }
 
-        // Pristine paper if no burn
+        // Pristine paper if no burn active
         if (burnStrength <= 0.001) {
           gl_FragColor = texture2D(u_top, uvTop);
           return;
         }
 
-        // 1. Upward Heat Convection & Refraction Mirage
+        // 1. Slow, Gentle Heat Mirage Shimmer (Subtle optical refraction)
         vec2 heatRefract = vec2(
-          sin(u_time * 9.0 + uv.y * 36.0),
-          cos(u_time * 7.5 + uv.x * 28.0)
-        ) * 0.003 * smoothstep(0.0, 0.5, burnStrength);
+          sin(u_time * 2.2 + uv.y * 24.0),
+          cos(u_time * 1.8 + uv.x * 20.0)
+        ) * 0.0025 * smoothstep(0.0, 0.5, burnStrength);
 
         vec4 topColor = texture2D(u_top, uvTop + heatRefract);
         vec4 bottomColor = texture2D(u_bottom, uvBottom);
 
-        // 2. Realistic Paper Fiber Tear Noise (Jagged fibrous cellulose edges)
-        float fiber = paperGrain(uv * 18.0) * 0.5 + 0.5;
-        float microFiber = snoise(uv * 65.0) * 0.08;
+        // 2. Realistic Jagged Cellulose Fiber Grain
+        float fiber = paperGrain(uv * 16.0) * 0.5 + 0.5;
+        float microFiber = snoise(uv * 55.0) * 0.06;
 
-        // 3. Temporal Smolder Flicker (Deep breathing coals + micro-crackles)
-        float deepBreath = sin(u_time * 7.0 + uv.x * 20.0) * 0.04;
-        float crackleJitter = cos(u_time * 28.0 + uv.y * 40.0) * 0.025;
-        float temporalFlicker = deepBreath + crackleJitter;
+        // 3. Slow, Hypnotic Smoldering Pulse (Deep natural breathing coals)
+        float slowBreath = sin(u_time * 2.8 + uv.x * 12.0) * 0.035;
+        float subtleCrackle = cos(u_time * 6.5 + uv.y * 22.0) * 0.018;
+        float temporalFlicker = slowBreath + subtleCrackle;
 
         // Combined burn progress
-        float burnProgress = burnStrength * 1.5 - (1.0 - (fiber + microFiber)) * 0.42 + temporalFlicker;
+        float burnProgress = burnStrength * 1.48 - (1.0 - (fiber + microFiber)) * 0.40 + temporalFlicker;
 
-        // 4. Upward Licking Pyrolysis Flame Tongues (Real combustion fire licking upwards)
-        vec2 flameCoord = uv * vec2(18.0, 8.0);
-        flameCoord.y += u_time * 3.5; // Fast upward convective velocity
-        flameCoord.x += sin(u_time * 4.0 + uv.y * 12.0) * 0.5; // Turbulent sideways curl
+        // 4. Slow Upward Flame Licks (Majestic vertical heat convection)
+        vec2 flameCoord = uv * vec2(14.0, 6.0);
+        flameCoord.y += u_time * 1.1; // Gentle, natural upward flame speed
+        flameCoord.x += sin(u_time * 1.4 + uv.y * 8.0) * 0.35; // Gentle curl
 
         float flameNoise = fbm(flameCoord) * 0.5 + 0.5;
-        // Flame only ignites right along the active smoldering boundary (burnProgress between 0.65 and 0.88)
-        float flameZone = smoothstep(0.62, 0.74, burnProgress) * (1.0 - smoothstep(0.82, 0.95, burnProgress));
-        float flameTongue = flameZone * pow(flameNoise, 1.8) * 1.8 * (0.8 + 0.4 * sin(u_time * 12.0));
+        float flameZone = smoothstep(0.64, 0.74, burnProgress) * (1.0 - smoothstep(0.81, 0.94, burnProgress));
+        float flameTongue = flameZone * pow(flameNoise, 1.7) * 1.6 * (0.85 + 0.25 * sin(u_time * 3.2));
 
-        // ------------------ REALISTIC LAYER COMPOSITION ------------------
+        // ------------------ REALISTIC MULTI-ZONE COMPOSITION ------------------
 
-        // ZONE 1: Paper completely burned away (Reveals bottom photo)
+        // ZONE 1: Paper completely burned away (Reveals bottom photo with curled drop-shadow)
         if (burnProgress > 0.83) {
-          // Physical curling paper drop-shadow cast onto photo
           float shadowDist = burnProgress - 0.83;
-          float shadowAmt = smoothstep(0.0, 0.10, shadowDist);
-          vec3 shadowedPhoto = mix(bottomColor.rgb * 0.32, bottomColor.rgb, shadowAmt);
+          float shadowAmt = smoothstep(0.0, 0.09, shadowDist);
+          vec3 shadowedPhoto = mix(bottomColor.rgb * 0.34, bottomColor.rgb, shadowAmt);
 
-          // Subtle residual flame lick over revealed edge
-          if (flameTongue > 0.15) {
-            vec3 flameColor = mix(vec3(1.0, 0.35, 0.0), vec3(1.2, 0.9, 0.3), flameTongue);
-            shadowedPhoto = mix(shadowedPhoto, flameColor, flameTongue * 0.5);
+          // Soft flame lick highlight over revealed rim
+          if (flameTongue > 0.12) {
+            vec3 flameColor = mix(vec3(1.0, 0.38, 0.02), vec3(1.2, 0.92, 0.35), flameTongue);
+            shadowedPhoto = mix(shadowedPhoto, flameColor, flameTongue * 0.45);
           }
 
           gl_FragColor = vec4(shadowedPhoto, 1.0);
         }
-        // ZONE 2: Active Smoldering Fireline & Blazing Ember Ridge
+        // ZONE 2: Glowing Incandescent Smoldering Ember Fireline
         else if (burnProgress > 0.69) {
           float t = (burnProgress - 0.69) / 0.14;
           
-          // Realistic combustion color spectrum:
-          // Blood Crimson -> Vivid Cadmium Orange -> Radiant Fire Gold -> Incandescent White Core
-          vec3 emberCrimson = vec3(0.85, 0.08, 0.01);
-          vec3 emberOrange = vec3(1.0, 0.42, 0.04);
-          vec3 emberGold = vec3(1.0, 0.85, 0.22);
-          vec3 emberWhiteHot = vec3(1.4, 1.35, 1.15);
+          vec3 emberCrimson = vec3(0.85, 0.09, 0.02);
+          vec3 emberOrange = vec3(1.0, 0.45, 0.05);
+          vec3 emberGold = vec3(1.0, 0.88, 0.26);
+          vec3 emberWhiteHot = vec3(1.35, 1.30, 1.15);
 
           vec3 emberCol;
           if (t < 0.45) {
@@ -259,43 +262,42 @@ export default function App() {
             emberCol = mix(emberGold, emberWhiteHot, (t - 0.82) / 0.18);
           }
 
-          // Pulsing living heat + micro crackle sparks
-          float heatPulse = 1.35 + sin(u_time * 10.0 + uv.x * 30.0) * 0.35;
+          // Slow living heat breathing
+          float heatPulse = 1.30 + sin(u_time * 2.8 + uv.x * 16.0) * 0.28;
           emberCol *= heatPulse;
 
-          // Add upward licking flame tongue
-          if (flameTongue > 0.1) {
-            vec3 tongueCol = mix(vec3(1.0, 0.2, 0.0), vec3(1.3, 1.1, 0.6), flameTongue);
+          // Upward flame lick blend
+          if (flameTongue > 0.08) {
+            vec3 tongueCol = mix(vec3(1.0, 0.25, 0.02), vec3(1.3, 1.15, 0.6), flameTongue);
             emberCol = max(emberCol, tongueCol);
           }
 
           gl_FragColor = vec4(emberCol, 1.0);
         }
-        // ZONE 3: Charred Carbon Ash (Brittle black charcoal with crack fissures)
-        else if (burnProgress > 0.53) {
-          float t = (burnProgress - 0.53) / 0.16;
-          vec3 deepCarbon = vec3(0.025, 0.015, 0.012);
-          vec3 emberFibers = vec3(0.7, 0.12, 0.02);
+        // ZONE 3: Charred Carbon Ash (Brittle black charcoal crust with micro-cracks)
+        else if (burnProgress > 0.54) {
+          float t = (burnProgress - 0.54) / 0.15;
+          vec3 deepCarbon = vec3(0.025, 0.016, 0.012);
+          vec3 emberFibers = vec3(0.72, 0.14, 0.02);
 
-          // Fine burnt paper cracks where ember peeks through
-          float crack = step(0.78, snoise(uv * 90.0));
-          vec3 charredAsh = mix(deepCarbon, emberFibers, pow(t, 3.0) * 0.75 + crack * 0.35);
+          float crack = step(0.80, snoise(uv * 75.0));
+          vec3 charredAsh = mix(deepCarbon, emberFibers, pow(t, 2.8) * 0.72 + crack * 0.30);
 
           gl_FragColor = vec4(charredAsh, 1.0);
         }
-        // ZONE 4: Scorched Brown Thermal Halo (Heated cellulose fibers)
-        else if (burnProgress > 0.35) {
-          float t = (burnProgress - 0.35) / 0.18;
-          vec3 scorchUmber = vec3(0.24, 0.11, 0.04);
-          vec3 toastedHalo = mix(topColor.rgb * 0.68, scorchUmber, t);
+        // ZONE 4: Scorched Brown Thermal Halo (Thermal paper degradation)
+        else if (burnProgress > 0.36) {
+          float t = (burnProgress - 0.36) / 0.18;
+          vec3 scorchUmber = vec3(0.24, 0.12, 0.04);
+          vec3 toastedHalo = mix(topColor.rgb * 0.70, scorchUmber, t);
 
-          // Paper curl specular highlight right on the edge of the scorch
-          float curlHighlight = smoothstep(0.35, 0.40, burnProgress) * (1.0 - smoothstep(0.40, 0.46, burnProgress));
-          toastedHalo += vec3(0.12, 0.09, 0.05) * curlHighlight;
+          // Paper curl rim highlight
+          float curlHighlight = smoothstep(0.36, 0.41, burnProgress) * (1.0 - smoothstep(0.41, 0.47, burnProgress));
+          toastedHalo += vec3(0.10, 0.08, 0.04) * curlHighlight;
 
           gl_FragColor = vec4(toastedHalo, 1.0);
         }
-        // ZONE 5: Pristine Untouched Paper
+        // ZONE 5: Pristine Paper Sheet
         else {
           gl_FragColor = topColor;
         }
@@ -356,7 +358,7 @@ export default function App() {
     gl.uniform1i(uTopLoc, 0);
     gl.uniform1i(uBottomLoc, 1);
     gl.uniform1i(uBurnMapLoc, 2);
-    gl.uniform1f(uRadiusLoc, 0.22);
+    gl.uniform1f(uRadiusLoc, 0.15); // Refined, authentic burn tip radius
     gl.uniform1f(uAspectLoc, H / W);
 
     // Texture creation helper
@@ -408,27 +410,27 @@ export default function App() {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bCanvas);
 
-    // Dynamic Sparks System
+    // Refined Sparks System: Gentle, Slow Drifting Campfire Embers
     const sparks = [];
-    const maxSparks = 100;
+    const maxSparks = 80;
 
     const spawnSpark = (x, y, speedMult = 1.0) => {
       if (sparks.length >= maxSparks) return;
       const angle = Math.random() * Math.PI * 2;
-      const speed = (Math.random() * 2.4 + 0.8) * speedMult;
+      const speed = (Math.random() * 1.2 + 0.4) * speedMult; // Slower, graceful ejection
       sparks.push({
-        x: x + (Math.random() - 0.5) * 22,
-        y: y + (Math.random() - 0.5) * 22,
+        x: x + (Math.random() - 0.5) * 16,
+        y: y + (Math.random() - 0.5) * 16,
         vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - (Math.random() * 2.5 + 1.5), // Upward heat buoyancy
-        size: Math.random() * 2.2 + 0.9,
+        vy: Math.sin(angle) * speed - (Math.random() * 1.5 + 0.8), // Slow upward thermal drift
+        size: Math.random() * 2.0 + 0.8,
         life: 1.0,
-        decay: Math.random() * 0.02 + 0.014,
-        heat: Math.random() * 0.4 + 0.6
+        decay: Math.random() * 0.011 + 0.007, // Slow, peaceful burnout
+        heat: Math.random() * 0.35 + 0.65
       });
     };
 
-    // Cursor tracking
+    // Smooth cursor tracking with gentle fluid inertia
     let targetMouse = { x: 0.5, y: 0.5 };
     let currentMouse = { x: 0.5, y: 0.5 };
     let lastMousePos = { x: 0.5, y: 0.5 };
@@ -438,15 +440,15 @@ export default function App() {
     let clock = 0;
     let burnDirty = false;
 
-    // Stamp burn spot
-    const stampBurn = (nx, ny, radius = 45) => {
+    // Stamp burn spot with tight, natural ember radius
+    const stampBurn = (nx, ny, radius = 28) => {
       const bx = nx * bCanvas.width;
       const by = ny * bCanvas.height;
 
       const grad = bCtx.createRadialGradient(bx, by, 0, bx, by, radius);
       grad.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
-      grad.addColorStop(0.55, 'rgba(255, 255, 255, 0.92)');
-      grad.addColorStop(0.85, 'rgba(255, 255, 255, 0.45)');
+      grad.addColorStop(0.55, 'rgba(255, 255, 255, 0.90)');
+      grad.addColorStop(0.85, 'rgba(255, 255, 255, 0.40)');
       grad.addColorStop(1, 'rgba(255, 255, 255, 0.0)');
 
       bCtx.fillStyle = grad;
@@ -456,13 +458,13 @@ export default function App() {
       burnDirty = true;
     };
 
-    // 60FPS Render Loop
+    // Continuous Render Loop (Paced at slow, majestic speed)
     const renderLoop = () => {
-      clock += 0.035;
+      clock += 0.015; // Slow, hypnotic time progression
 
-      currentMouse.x += (targetMouse.x - currentMouse.x) * 0.18;
-      currentMouse.y += (targetMouse.y - currentMouse.y) * 0.18;
-      hoverAmount += ((isHovered ? 1.0 : 0.0) - hoverAmount) * 0.12;
+      currentMouse.x += (targetMouse.x - currentMouse.x) * 0.14;
+      currentMouse.y += (targetMouse.y - currentMouse.y) * 0.14;
+      hoverAmount += ((isHovered ? 1.0 : 0.0) - hoverAmount) * 0.08;
 
       const dx = (currentMouse.x - lastMousePos.x) * W;
       const dy = (currentMouse.y - lastMousePos.y) * H;
@@ -471,16 +473,16 @@ export default function App() {
       lastMousePos.y = currentMouse.y;
 
       if (isHovered && burnMode === 'reveal') {
-        const burnRadius = Math.min(56, Math.max(34, 38 + speed * 0.55));
+        const burnRadius = Math.min(38, Math.max(22, 26 + speed * 0.35));
         stampBurn(currentMouse.x, currentMouse.y, burnRadius);
 
-        const sparkRate = Math.min(6, Math.max(1, Math.floor(speed * 0.35) + 1));
-        for (let i = 0; i < sparkRate; i++) {
-          spawnSpark(currentMouse.x * W, currentMouse.y * H, 1.0 + speed * 0.06);
+        // Spawn slow graceful sparks
+        if (Math.random() < 0.75) {
+          spawnSpark(currentMouse.x * W, currentMouse.y * H, 1.0);
         }
       } else if (isHovered && burnMode === 'torch') {
-        if (Math.random() < 0.65) {
-          spawnSpark(currentMouse.x * W, currentMouse.y * H, 0.9);
+        if (Math.random() < 0.4) {
+          spawnSpark(currentMouse.x * W, currentMouse.y * H, 0.8);
         }
       }
 
@@ -500,14 +502,14 @@ export default function App() {
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
 
-      // Render Floating Sparks & Cinders
+      // Render Floating Embers & Ash Particles
       pCtx.clearRect(0, 0, W, H);
       for (let i = sparks.length - 1; i >= 0; i--) {
         const s = sparks[i];
-        s.x += s.vx + Math.sin(clock * 4.5 + s.y * 0.06) * 0.65;
+        s.x += s.vx + Math.sin(clock * 2.0 + s.y * 0.04) * 0.4;
         s.y += s.vy;
-        s.vy -= 0.045; // Rising thermal acceleration
-        s.vx *= 0.98;
+        s.vy -= 0.02; // Slow, serene upward draft
+        s.vx *= 0.985;
         s.life -= s.decay;
 
         if (s.life <= 0 || s.y < -20 || s.x < -20 || s.x > W + 20) {
@@ -515,27 +517,27 @@ export default function App() {
           continue;
         }
 
-        const alpha = Math.min(1.0, s.life * 1.6);
+        const alpha = Math.min(1.0, s.life * 1.5);
         let r = 255, g = 180, b = 50;
         if (s.life > 0.65) {
-          r = 255; g = Math.floor(230 * s.heat); b = Math.floor(140 * s.heat);
+          r = 255; g = Math.floor(225 * s.heat); b = Math.floor(130 * s.heat);
         } else if (s.life > 0.3) {
-          r = 255; g = Math.floor(100 * s.life); b = 15;
+          r = 255; g = Math.floor(95 * s.life); b = 15;
         } else {
-          r = Math.floor(210 * s.life); g = 20; b = 10;
+          r = Math.floor(200 * s.life); g = 20; b = 10;
         }
 
         pCtx.save();
         pCtx.beginPath();
-        pCtx.arc(s.x, s.y, s.size * 2.2, 0, Math.PI * 2);
-        pCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.35})`;
+        pCtx.arc(s.x, s.y, s.size * 2.0, 0, Math.PI * 2);
+        pCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.30})`;
         pCtx.fill();
 
         pCtx.beginPath();
         pCtx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
         pCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
         pCtx.shadowColor = `rgb(${r}, ${g}, ${b})`;
-        pCtx.shadowBlur = 9;
+        pCtx.shadowBlur = 7;
         pCtx.fill();
         pCtx.restore();
       }
@@ -595,11 +597,11 @@ export default function App() {
         </div>
       </header>
 
-      {/* 2. Interactive Burning Paper Stage with Flying Embers */}
+      {/* 2. Interactive Burning Paper Stage with Crisp, Refined Frame */}
       <main className="hero-viewport">
         <div className="stage-outer-container">
           
-          {/* Main Visual Artwork with Shader + Particle Overlay */}
+          {/* Main Visual Artwork with Crisp 8px Radius Frame */}
           <div className="art-stage-wrapper">
             <canvas 
               ref={canvasRef} 
@@ -616,7 +618,7 @@ export default function App() {
             />
           </div>
 
-          {/* Minimal Icon-Only Floating Dock (No Text Names, Pure Sleek Icons) */}
+          {/* Minimal Icon-Only Floating Dock */}
           <div className="burn-controls-toolbar">
             <button 
               className={`icon-only-btn ${burnMode === 'reveal' ? 'active-icon-btn' : ''}`}
@@ -624,7 +626,7 @@ export default function App() {
               aria-label="Burn to Reveal"
               title="Burn to Reveal"
             >
-              <Flame size={19} />
+              <Flame size={18} />
             </button>
 
             <button 
@@ -633,7 +635,7 @@ export default function App() {
               aria-label="Torch Mode"
               title="Torch Mode"
             >
-              <Sparkles size={19} />
+              <Sparkles size={18} />
             </button>
 
             <button 
@@ -642,7 +644,7 @@ export default function App() {
               aria-label="Reset Sheet"
               title="Reset Sheet"
             >
-              <RotateCcw size={18} />
+              <RotateCcw size={17} />
             </button>
           </div>
 
@@ -654,8 +656,8 @@ export default function App() {
         <div className="minimal-zone-content">
           <span className="tiny-label">// MINIMAL PORTFOLIO 2026</span>
           <p className="minimal-instruction">
-            Designed with living WebGL burning paper mechanics, cellulose fiber simulation, 
-            pyrolysis flame licks, heat convection sparks, and curled paper shadows.
+            Smooth scrolling enabled. Hypnotic slow combustion simulation with refined burn tip radius, 
+            cellulose fiber tearing, gentle upward convection, and organic paper drop shadows.
           </p>
         </div>
       </section>
