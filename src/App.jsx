@@ -24,7 +24,7 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  // Broken Half-Centimeter Boxes Interactive Canvas Engine
+  // Organic Fluid Liquid Mask Reveal Engine
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -33,140 +33,135 @@ export default function App() {
     const topImg = new Image();
     topImg.src = '/assets/anime_layer.png';
 
-    let mouse = { x: -1000, y: -1000, active: false };
+    // Fluid droplets buffer with organic fluid physics
+    let fluidDrops = [];
+    let mouse = { x: -1000, y: -1000, prevX: -1000, prevY: -1000, speed: 0, isMoving: false };
     let animId;
-    let sparks = [];
+    let time = 0;
 
-    // Half centimeter in screen pixels is approx 18-20px
-    const BOX_SIZE = 18;
-    const BREAK_RADIUS = 110;
+    // Offscreen mask canvas for fluid metaball rendering
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = canvas.width;
+    maskCanvas.height = canvas.height;
+    const maskCtx = maskCanvas.getContext('2d');
 
-    // Track mouse coordinates on canvas
     const handleMouseMove = (e) => {
       const rect = canvas.getBoundingClientRect();
-      mouse.x = e.clientX - rect.left;
-      mouse.y = e.clientY - rect.top;
-      mouse.active = true;
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
 
-      // Spawn random micro sparks on mouse move
-      if (Math.random() < 0.6) {
-        sparks.push({
-          x: mouse.x + (Math.random() - 0.5) * BREAK_RADIUS * 1.2,
-          y: mouse.y + (Math.random() - 0.5) * BREAK_RADIUS * 1.2,
-          size: Math.random() * 3 + 1,
-          color: Math.random() > 0.4 ? '#38BDF8' : '#FB7185',
-          vx: (Math.random() - 0.5) * 3,
-          vy: (Math.random() - 0.5) * 3,
+      const dx = x - (mouse.prevX === -1000 ? x : mouse.prevX);
+      const dy = y - (mouse.prevY === -1000 ? y : mouse.prevY);
+      const dist = Math.hypot(dx, dy);
+
+      mouse.x = x;
+      mouse.y = y;
+      mouse.prevX = x;
+      mouse.prevY = y;
+      mouse.speed = dist;
+      mouse.isMoving = true;
+
+      // Spawn organic fluid droplets along the cursor path
+      const steps = Math.max(1, Math.min(8, Math.floor(dist / 8)));
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const dropX = x - dx * (1 - t) + (Math.random() - 0.5) * 14;
+        const dropY = y - dy * (1 - t) + (Math.random() - 0.5) * 14;
+        const baseRadius = 60 + Math.min(50, dist * 0.9) + (Math.random() - 0.5) * 18;
+
+        fluidDrops.push({
+          x: dropX,
+          y: dropY,
+          vx: dx * 0.08 + (Math.random() - 0.5) * 2,
+          vy: dy * 0.08 + (Math.random() - 0.5) * 2,
+          radius: baseRadius,
           life: 1.0,
-          decay: Math.random() * 0.05 + 0.03
+          decay: 0.015 + Math.random() * 0.012
         });
       }
     };
 
     const handleMouseLeave = () => {
-      mouse.active = false;
+      mouse.isMoving = false;
       mouse.x = -1000;
       mouse.y = -1000;
+      mouse.prevX = -1000;
+      mouse.prevY = -1000;
     };
 
     topImg.onload = () => {
-      // Set canvas dimensions matching container
       const width = canvas.width;
       const height = canvas.height;
 
-      const cols = Math.ceil(width / BOX_SIZE);
-      const rows = Math.ceil(height / BOX_SIZE);
-
       const render = () => {
-        ctx.clearRect(0, 0, width, height);
+        time += 0.035;
 
-        // Render each half-centimeter box
-        for (let r = 0; r < rows; r++) {
-          for (let c = 0; c < cols; c++) {
-            const bx = c * BOX_SIZE;
-            const by = r * BOX_SIZE;
-            const centerX = bx + BOX_SIZE / 2;
-            const centerY = by + BOX_SIZE / 2;
+        // 1. Render organic fluid droplet simulation on the mask
+        maskCtx.clearRect(0, 0, width, height);
 
-            const dist = Math.hypot(mouse.x - centerX, mouse.y - centerY);
+        // Update each fluid drop with viscosity and surface-tension wobble
+        for (let i = fluidDrops.length - 1; i >= 0; i--) {
+          const drop = fluidDrops[i];
+          drop.x += drop.vx;
+          drop.y += drop.vy;
+          drop.vx *= 0.94; // Viscous friction
+          drop.vy *= 0.94;
+          drop.life -= drop.decay;
 
-            if (mouse.active && dist < BREAK_RADIUS) {
-              // Normalized breakdown factor: 1.0 at center, 0.0 at radius edge
-              const breakIntensity = 1 - (dist / BREAK_RADIUS);
-
-              // Inside center: tile is completely dissolved/broken away
-              if (breakIntensity > 0.65) {
-                continue; // Don't draw top layer tile -> reveals bottom real photo!
-              }
-
-              // In the breaking perimeter edge: sparking broken fractured square
-              ctx.save();
-              ctx.translate(centerX, centerY);
-
-              // Jitter/break angle and shrink
-              const jitterScale = 1 - breakIntensity * 0.55;
-              const jitterX = (Math.sin(c * 17 + r * 13) * 6) * breakIntensity;
-              const jitterY = (Math.cos(c * 11 + r * 19) * 6) * breakIntensity;
-
-              ctx.translate(jitterX, jitterY);
-              ctx.scale(jitterScale, jitterScale);
-
-              // Draw partial broken tile with fading opacity
-              ctx.globalAlpha = Math.max(0.1, 1 - breakIntensity * 1.1);
-
-              // Source image crop
-              const sW = (BOX_SIZE / width) * topImg.naturalWidth;
-              const sH = (BOX_SIZE / height) * topImg.naturalHeight;
-              const sX = (bx / width) * topImg.naturalWidth;
-              const sY = (by / height) * topImg.naturalHeight;
-
-              ctx.drawImage(
-                topImg, 
-                sX, sY, sW, sH, 
-                -BOX_SIZE / 2, -BOX_SIZE / 2, BOX_SIZE, BOX_SIZE
-              );
-
-              // Draw sparking neon box borders on broken pieces
-              ctx.strokeStyle = Math.random() > 0.5 ? 'rgba(56, 189, 248, 0.85)' : 'rgba(244, 63, 94, 0.85)';
-              ctx.lineWidth = 1.5;
-              ctx.strokeRect(-BOX_SIZE / 2, -BOX_SIZE / 2, BOX_SIZE, BOX_SIZE);
-
-              ctx.restore();
-
-            } else {
-              // Outside cursor radius: draw normal intact box
-              const sW = (BOX_SIZE / width) * topImg.naturalWidth;
-              const sH = (BOX_SIZE / height) * topImg.naturalHeight;
-              const sX = (bx / width) * topImg.naturalWidth;
-              const sY = (by / height) * topImg.naturalHeight;
-
-              ctx.drawImage(
-                topImg, 
-                sX, sY, sW, sH, 
-                bx, by, BOX_SIZE, BOX_SIZE
-              );
-            }
-          }
-        }
-
-        // Render micro electrical sparks
-        for (let i = sparks.length - 1; i >= 0; i--) {
-          const s = sparks[i];
-          s.x += s.vx;
-          s.y += s.vy;
-          s.life -= s.decay;
-
-          if (s.life <= 0) {
-            sparks.splice(i, 1);
+          if (drop.life <= 0) {
+            fluidDrops.splice(i, 1);
             continue;
           }
 
-          ctx.fillStyle = s.color;
-          ctx.globalAlpha = s.life;
-          ctx.fillRect(s.x, s.y, s.size, s.size);
+          // Liquid ripple wobble
+          const wobble = Math.sin(time * 4 + i) * 6;
+          const currentRadius = Math.max(10, drop.radius * (0.6 + drop.life * 0.4) + wobble);
+
+          // Soft organic radial density for fluid blending
+          const grad = maskCtx.createRadialGradient(
+            drop.x, drop.y, currentRadius * 0.2,
+            drop.x, drop.y, currentRadius
+          );
+          grad.addColorStop(0, `rgba(255, 255, 255, ${Math.min(1, drop.life * 1.6)})`);
+          grad.addColorStop(0.75, `rgba(255, 255, 255, ${Math.min(0.9, drop.life)})`);
+          grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+          maskCtx.fillStyle = grad;
+          maskCtx.beginPath();
+          maskCtx.arc(drop.x, drop.y, currentRadius, 0, Math.PI * 2);
+          maskCtx.fill();
         }
 
-        ctx.globalAlpha = 1.0;
+        // Active fluid presence right at mouse cursor
+        if (mouse.isMoving && mouse.x > 0 && mouse.y > 0) {
+          const cursorRadius = 80 + Math.sin(time * 6) * 8;
+          const cursorGrad = maskCtx.createRadialGradient(
+            mouse.x, mouse.y, cursorRadius * 0.2,
+            mouse.x, mouse.y, cursorRadius
+          );
+          cursorGrad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+          cursorGrad.addColorStop(0.8, 'rgba(255, 255, 255, 0.9)');
+          cursorGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+          maskCtx.fillStyle = cursorGrad;
+          maskCtx.beginPath();
+          maskCtx.arc(mouse.x, mouse.y, cursorRadius, 0, Math.PI * 2);
+          maskCtx.fill();
+        }
+
+        // 2. Composite onto primary display canvas
+        ctx.clearRect(0, 0, width, height);
+
+        // Draw top anime layer
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(topImg, 0, 0, width, height);
+
+        // Fluid destination-out: melted liquid areas erase the top layer!
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.drawImage(maskCanvas, 0, 0);
+
+        ctx.globalCompositeOperation = 'source-over';
+
         animId = requestAnimationFrame(render);
       };
 
@@ -190,13 +185,9 @@ export default function App() {
 
   return (
     <div className="portfolio-root">
-      {/* 1. Ultra-clean Simple Transparent Navbar (Zero Background) */}
+      {/* 1. Pure Transparent Navbar (Zero Background, Name Removed) */}
       <header className={`pure-navbar ${navVisible ? 'nav-visible' : 'nav-hidden'}`}>
         <div className="nav-container">
-          <div className="nav-logo">
-            <span>ROHIT</span>
-          </div>
-
           <nav className="nav-menu">
             <a href="#about" className="clean-nav-link">About</a>
             <a href="#projects" className="clean-nav-link">Projects</a>
@@ -213,7 +204,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* 2. Immersive Hero Stage (Clean, No Clutter Text) */}
+      {/* 2. Immersive Hero Viewport (Clean, Liquid Fluid Reveal) */}
       <main className="hero-viewport">
         <div className="art-stage-wrapper" ref={containerRef}>
           {/* Base Layer: Real Photo Underneath */}
@@ -225,17 +216,17 @@ export default function App() {
             />
           </div>
 
-          {/* Top Layer: Broken Sparks Box Canvas (Destructible Half-cm squares) */}
+          {/* Top Layer: Fluid Liquid Melt Canvas */}
           <canvas 
             ref={canvasRef} 
             width={460} 
             height={680} 
-            className="sparks-breakout-canvas"
+            className="fluid-melt-canvas"
           />
         </div>
       </main>
 
-      {/* Minimalist Scroll Demonstration Area */}
+      {/* Demo Scroll Content to test Navbar Auto-Hide */}
       <section id="about" className="scroll-demonstration-zone">
         <div className="minimal-zone-content">
           <span className="tiny-label">// SCROLL TEST ZONE</span>
