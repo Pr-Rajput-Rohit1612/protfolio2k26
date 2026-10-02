@@ -24,34 +24,34 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  // Burning Paper with Glowing Embers and Sparks Simulation Engine
+  // Authentic Burning Paper Simulation Engine
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
     const topImg = new Image();
-    topImg.src = '/assets/anime_layer.png';
 
-    // Burn tracks and flying ember sparks
-    let burnHoles = [];
-    let emberParticles = [];
-    let mouse = { x: -1000, y: -1000, prevX: -1000, prevY: -1000, isOver: false };
+    // Burn spots and rising sparks
+    let burnSpots = [];
+    let sparks = [];
+    let flames = [];
+    let mouse = { x: -1000, y: -1000, prevX: -1000, prevY: -1000, active: false };
     let animId;
     let time = 0;
 
-    // Offscreen mask canvas for organic jagged burned paper cutouts
+    // Offscreen mask canvas for burning paper cutouts
     const maskCanvas = document.createElement('canvas');
     maskCanvas.width = canvas.width;
     maskCanvas.height = canvas.height;
     const maskCtx = maskCanvas.getContext('2d');
 
-    // Generate ragged procedural noise for paper burning edge
-    const getBurnRadius = (baseRadius, angle, seed) => {
-      return baseRadius + 
-        Math.sin(angle * 7 + seed) * 8 + 
-        Math.cos(angle * 13 + seed * 2) * 5 + 
-        Math.sin(angle * 23) * 3;
+    // Procedural ragged torn/burned paper radius
+    const getBurnRadius = (baseR, angle, seed) => {
+      return baseR + 
+        Math.sin(angle * 6 + seed) * 10 + 
+        Math.cos(angle * 14 + seed * 1.5) * 6 + 
+        Math.sin(angle * 22) * 3;
     };
 
     const handleMouseMove = (e) => {
@@ -67,82 +67,93 @@ export default function App() {
       mouse.y = y;
       mouse.prevX = x;
       mouse.prevY = y;
-      mouse.isOver = true;
+      mouse.active = true;
 
-      // Spawn burning spots along mouse track
-      const steps = Math.max(1, Math.min(6, Math.floor(dist / 12)));
+      // Spawn burn points along path
+      const steps = Math.max(1, Math.min(6, Math.floor(dist / 10)));
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
-        const bx = x - dx * (1 - t) + (Math.random() - 0.5) * 8;
-        const by = y - dy * (1 - t) + (Math.random() - 0.5) * 8;
-        const radius = 68 + (Math.random() - 0.5) * 16;
+        const bx = x - dx * (1 - t) + (Math.random() - 0.5) * 6;
+        const by = y - dy * (1 - t) + (Math.random() - 0.5) * 6;
+        const radius = 64 + (Math.random() - 0.5) * 14;
 
-        burnHoles.push({
+        burnSpots.push({
           x: bx,
           y: by,
           radius: radius,
-          seed: Math.random() * 50,
+          seed: Math.random() * 40,
           life: 1.0,
-          decay: 0.012 + Math.random() * 0.008
+          decay: 0.014 + Math.random() * 0.008
         });
 
-        // Spawn flying burning sparks / embers from paper burn line
-        for (let p = 0; p < 3; p++) {
+        // Spawn flying burning sparks from the burning edge
+        for (let s = 0; s < 3; s++) {
           const sparkAngle = Math.random() * Math.PI * 2;
-          const sparkDist = radius * 0.95;
-          emberParticles.push({
+          const sparkDist = radius * 0.9;
+          sparks.push({
             x: bx + Math.cos(sparkAngle) * sparkDist,
             y: by + Math.sin(sparkAngle) * sparkDist,
-            vx: (Math.random() - 0.5) * 2.2,
-            vy: -Math.random() * 2.8 - 1.2, // Float upwards like heat sparks
-            size: Math.random() * 2.6 + 1.2,
-            color: Math.random() > 0.4 ? '#FFA500' : (Math.random() > 0.5 ? '#FF4500' : '#FFF0A0'),
+            vx: (Math.random() - 0.5) * 2.5,
+            vy: -Math.random() * 3.2 - 1.2, // Float upwards with heat
+            size: Math.random() * 2.8 + 1.2,
+            color: Math.random() > 0.4 ? '#FFA500' : (Math.random() > 0.5 ? '#FF4500' : '#FFF275'),
             life: 1.0,
             decay: Math.random() * 0.035 + 0.02
+          });
+        }
+
+        // Spawn little flame tongues licking around the burn rim
+        if (Math.random() < 0.7) {
+          const flameAngle = Math.random() * Math.PI * 2;
+          flames.push({
+            x: bx + Math.cos(flameAngle) * (radius * 0.95),
+            y: by + Math.sin(flameAngle) * (radius * 0.95),
+            radius: Math.random() * 12 + 6,
+            life: 1.0,
+            decay: 0.08 + Math.random() * 0.05
           });
         }
       }
     };
 
     const handleMouseLeave = () => {
-      mouse.isOver = false;
+      mouse.active = false;
       mouse.x = -1000;
       mouse.y = -1000;
       mouse.prevX = -1000;
       mouse.prevY = -1000;
     };
 
-    topImg.onload = () => {
+    const startAnimation = () => {
       const width = canvas.width;
       const height = canvas.height;
 
       const render = () => {
-        time += 0.04;
+        time += 0.045;
 
         // 1. Draw burning jagged cutout mask
         maskCtx.clearRect(0, 0, width, height);
 
-        // Update burn holes
-        for (let i = burnHoles.length - 1; i >= 0; i--) {
-          const hole = burnHoles[i];
-          hole.life -= hole.decay;
+        for (let i = burnSpots.length - 1; i >= 0; i--) {
+          const spot = burnSpots[i];
+          spot.life -= spot.decay;
 
-          if (hole.life <= 0) {
-            burnHoles.splice(i, 1);
+          if (spot.life <= 0) {
+            burnSpots.splice(i, 1);
             continue;
           }
 
-          const curRadius = hole.radius * (0.7 + hole.life * 0.3);
+          const curRadius = spot.radius * (0.65 + spot.life * 0.35);
 
-          // Draw organic ragged paper burn shape
-          maskCtx.fillStyle = 'rgba(255, 255, 255, 1)';
+          // Draw ragged burnt paper hole
+          maskCtx.fillStyle = '#FFFFFF';
           maskCtx.beginPath();
           const points = 32;
           for (let p = 0; p <= points; p++) {
             const angle = (p / points) * Math.PI * 2;
-            const r = getBurnRadius(curRadius, angle, hole.seed + time);
-            const px = hole.x + Math.cos(angle) * r;
-            const py = hole.y + Math.sin(angle) * r;
+            const r = getBurnRadius(curRadius, angle, spot.seed + time);
+            const px = spot.x + Math.cos(angle) * r;
+            const py = spot.y + Math.sin(angle) * r;
             if (p === 0) maskCtx.moveTo(px, py);
             else maskCtx.lineTo(px, py);
           }
@@ -151,14 +162,14 @@ export default function App() {
         }
 
         // Active burn spot at current cursor position
-        if (mouse.isOver && mouse.x > 0 && mouse.y > 0) {
-          const activeRadius = 78 + Math.sin(time * 6) * 5;
-          maskCtx.fillStyle = 'rgba(255, 255, 255, 1)';
+        if (mouse.active && mouse.x > 0 && mouse.y > 0) {
+          const activeR = 75 + Math.sin(time * 7) * 5;
+          maskCtx.fillStyle = '#FFFFFF';
           maskCtx.beginPath();
           const points = 36;
           for (let p = 0; p <= points; p++) {
             const angle = (p / points) * Math.PI * 2;
-            const r = getBurnRadius(activeRadius, angle, time * 2);
+            const r = getBurnRadius(activeR, angle, time * 2);
             const px = mouse.x + Math.cos(angle) * r;
             const py = mouse.y + Math.sin(angle) * r;
             if (p === 0) maskCtx.moveTo(px, py);
@@ -179,85 +190,106 @@ export default function App() {
         ctx.globalCompositeOperation = 'destination-out';
         ctx.drawImage(maskCanvas, 0, 0);
 
-        // C. Draw Fiery Charred Embers along the Burnt Paper Edges
+        // C. Draw Fiery Charred Embers & Flames along the Burnt Paper Edges
         ctx.globalCompositeOperation = 'source-over';
 
-        const drawEmberEdge = (x, y, radius, seed, alpha) => {
+        const drawBurntEdge = (x, y, radius, seed, alpha) => {
           if (alpha <= 0.05) return;
           const points = 36;
 
-          // 1. Burnt Charred Ash Edge (Black Carbon)
+          // 1. Charred Black Ash Edge (burnt paper carbon)
           ctx.save();
           ctx.beginPath();
           for (let p = 0; p <= points; p++) {
             const angle = (p / points) * Math.PI * 2;
-            const r = getBurnRadius(radius + 4, angle, seed + time);
+            const r = getBurnRadius(radius + 5, angle, seed + time);
             const px = x + Math.cos(angle) * r;
             const py = y + Math.sin(angle) * r;
             if (p === 0) ctx.moveTo(px, py);
             else ctx.lineTo(px, py);
           }
           ctx.closePath();
-          ctx.strokeStyle = `rgba(18, 12, 10, ${Math.min(0.9, alpha)})`;
-          ctx.lineWidth = 6;
+          ctx.strokeStyle = `rgba(20, 10, 8, ${Math.min(0.95, alpha)})`;
+          ctx.lineWidth = 7;
           ctx.stroke();
           ctx.restore();
 
-          // 2. Fiery Burning Embers Line (Glowing Orange & Red Fire)
+          // 2. Glowing Fiery Orange & Red Ember Rim
           ctx.save();
-          ctx.shadowColor = '#FF3B00';
-          ctx.shadowBlur = 14;
+          ctx.shadowColor = '#FF3700';
+          ctx.shadowBlur = 16;
           ctx.beginPath();
           for (let p = 0; p <= points; p++) {
             const angle = (p / points) * Math.PI * 2;
-            const r = getBurnRadius(radius + 1, angle, seed + time);
+            const r = getBurnRadius(radius + 1.5, angle, seed + time);
             const px = x + Math.cos(angle) * r;
             const py = y + Math.sin(angle) * r;
             if (p === 0) ctx.moveTo(px, py);
             else ctx.lineTo(px, py);
           }
           ctx.closePath();
-          ctx.strokeStyle = `rgba(255, 90, 0, ${alpha})`;
+          ctx.strokeStyle = `rgba(255, 75, 0, ${alpha})`;
           ctx.lineWidth = 3.5;
           ctx.stroke();
 
-          // 3. Blazing Golden Sparks Highlight on fire crests
+          // 3. Blazing Golden Heat Crests
           ctx.shadowColor = '#FFD700';
-          ctx.shadowBlur = 8;
-          ctx.strokeStyle = `rgba(255, 230, 120, ${alpha * 0.9})`;
+          ctx.shadowBlur = 9;
+          ctx.strokeStyle = `rgba(255, 235, 130, ${alpha * 0.9})`;
           ctx.lineWidth = 1.8;
           ctx.stroke();
           ctx.restore();
         };
 
-        // Draw ember edges for active burn holes
-        for (let i = 0; i < burnHoles.length; i++) {
-          const h = burnHoles[i];
-          const curR = h.radius * (0.7 + h.life * 0.3);
-          drawEmberEdge(h.x, h.y, curR, h.seed, h.life);
+        // Draw burnt edges for all burn spots
+        for (let i = 0; i < burnSpots.length; i++) {
+          const b = burnSpots[i];
+          const curR = b.radius * (0.65 + b.life * 0.35);
+          drawBurntEdge(b.x, b.y, curR, b.seed, b.life);
         }
 
-        // Draw active ember edge at mouse
-        if (mouse.isOver && mouse.x > 0 && mouse.y > 0) {
-          const curR = 78 + Math.sin(time * 6) * 5;
-          drawEmberEdge(mouse.x, mouse.y, curR, time * 2, 1.0);
+        // Draw active burn edge at mouse
+        if (mouse.active && mouse.x > 0 && mouse.y > 0) {
+          const curR = 75 + Math.sin(time * 7) * 5;
+          drawBurntEdge(mouse.x, mouse.y, curR, time * 2, 1.0);
         }
 
-        // D. Draw Flying Fiery Sparks rising from the fire
-        for (let i = emberParticles.length - 1; i >= 0; i--) {
-          const spk = emberParticles[i];
+        // D. Draw little flame tongues
+        for (let i = flames.length - 1; i >= 0; i--) {
+          const fl = flames[i];
+          fl.life -= fl.decay;
+          fl.y -= 1.2;
+
+          if (fl.life <= 0) {
+            flames.splice(i, 1);
+            continue;
+          }
+
+          ctx.save();
+          ctx.shadowColor = '#FF4500';
+          ctx.shadowBlur = 10;
+          ctx.fillStyle = `rgba(255, ${Math.floor(100 + fl.life * 140)}, 0, ${fl.life * 0.75})`;
+          ctx.beginPath();
+          ctx.arc(fl.x, fl.y, fl.radius * fl.life, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // E. Draw Rising Fiery Sparks
+        for (let i = sparks.length - 1; i >= 0; i--) {
+          const spk = sparks[i];
           spk.x += spk.vx;
           spk.y += spk.vy;
           spk.life -= spk.decay;
 
           if (spk.life <= 0) {
-            emberParticles.splice(i, 1);
+            sparks.splice(i, 1);
             continue;
           }
 
           ctx.save();
           ctx.shadowColor = spk.color;
-          ctx.shadowBlur = 6;
+          ctx.shadowBlur = 7;
           ctx.fillStyle = spk.color;
           ctx.globalAlpha = spk.life;
           ctx.beginPath();
@@ -271,6 +303,13 @@ export default function App() {
 
       render();
     };
+
+    // Robust image loading check
+    topImg.onload = startAnimation;
+    topImg.src = '/assets/anime_layer.png';
+    if (topImg.complete) {
+      startAnimation();
+    }
 
     const container = containerRef.current;
     if (container) {
@@ -320,7 +359,7 @@ export default function App() {
             />
           </div>
 
-          {/* Top Layer: Burning Paper Canvas with Fiery Embers */}
+          {/* Top Layer: Burning Paper Canvas with Glowing Fire Embers */}
           <canvas 
             ref={canvasRef} 
             width={460} 

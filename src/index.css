@@ -78,7 +78,7 @@ body {
 }
 
 .github-link {
-  color: #FF6B00;
+  color: #FF5500;
 }
 
 /* =========================================================
@@ -91,7 +91,7 @@ body {
   justify-content: center;
   position: relative;
   padding: 60px 20px;
-  background: radial-gradient(circle at center, #190D14 0%, #050608 72%);
+  background: radial-gradient(circle at center, #1B0C10 0%, #050608 72%);
 }
 
 .art-stage-wrapper {
@@ -101,7 +101,7 @@ body {
   border-radius: 4px;
   overflow: hidden;
   cursor: pointer;
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.95), 0 0 30px rgba(255, 69, 0, 0.15);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.95), 0 0 35px rgba(255, 60, 0, 0.2);
 }
 
 .base-photo-layer {
