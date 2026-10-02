@@ -82,18 +82,16 @@ body {
 }
 
 /* =========================================================
-   2. IMMERSIVE HERO VIEWPORT (CREEPING SMOLDER STAGE)
+   2. IMMERSIVE HERO VIEWPORT (BURNING PAPER SHADER STAGE)
    ========================================================= */
 .hero-viewport {
   min-height: 100vh;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   position: relative;
-  padding: 80px 20px 40px 20px;
-  background: radial-gradient(circle at center, #1B0C10 0%, #050608 72%);
-  gap: 20px;
+  padding: 60px 20px;
+  background: radial-gradient(circle at center, #180D14 0%, #050608 72%);
 }
 
 .art-stage-wrapper {
@@ -103,66 +101,13 @@ body {
   border-radius: 4px;
   overflow: hidden;
   cursor: crosshair;
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.95), 0 0 40px rgba(255, 60, 0, 0.18);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.95);
 }
 
-.base-photo-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: #000000;
-}
-
-.stage-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center top;
-  display: block;
-}
-
-.burning-paper-canvas {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
+.burning-shader-canvas {
   width: 100%;
   height: 100%;
   display: block;
-}
-
-/* Minimal Controls Dock */
-.burning-controls-dock {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: rgba(18, 12, 16, 0.6);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 6px 16px;
-  border-radius: 9999px;
-}
-
-.dock-hint {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  font-weight: 500;
-}
-
-.reset-paper-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #FFA500;
-  padding: 4px 12px;
-  border-radius: 9999px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.reset-paper-btn:hover {
-  background: rgba(255, 165, 0, 0.2);
-  border-color: #FFA500;
 }
 
 /* =========================================================
