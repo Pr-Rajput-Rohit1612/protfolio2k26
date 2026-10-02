@@ -23,7 +23,7 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  // Photorealistic GPU WebGL Burning Paper Dissolve Shader Engine
+  // Living GPU WebGL Burning Paper Shader with Heat Shimmer, Flickering Embers & Curling Shadow
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -44,7 +44,7 @@ export default function App() {
       }
     `;
 
-    // Fragment Shader: Realistic Burning Paper Dissolve Shader
+    // Fragment Shader: Living Burning Paper Shader with Heat Haze & Curling Paper Shadow
     const fsSource = `
       precision highp float;
       uniform sampler2D u_top;
@@ -53,6 +53,7 @@ export default function App() {
       uniform float u_radius;
       uniform float u_aspect;
       uniform float u_hover;
+      uniform float u_time;
       varying vec2 v_uv;
 
       // 2D Simplex Noise generator
@@ -83,7 +84,7 @@ export default function App() {
         return 130.0 * dot(m, g);
       }
 
-      // Fractal Brownian Motion for authentic paper fiber burning patterns
+      // Fractal Brownian Motion for paper grain
       float fbm(vec2 p) {
         float f = 0.0;
         f += 0.5000 * snoise(p); p *= 2.02;
@@ -95,61 +96,83 @@ export default function App() {
 
       void main() {
         vec2 uv = v_uv;
-        vec4 topColor = texture2D(u_top, uv);
-        vec4 bottomColor = texture2D(u_bottom, uv);
 
-        if (u_hover <= 0.01) {
-          gl_FragColor = topColor;
+        // If not hovered, render pristine paper layer
+        if (u_hover <= 0.001) {
+          gl_FragColor = texture2D(u_top, uv);
           return;
         }
 
-        // Exact distance from mouse with aspect ratio correction
+        // Distance from cursor with aspect ratio correction
         vec2 diff = uv - u_mouse;
         diff.y *= u_aspect;
         float dist = length(diff);
 
-        // Organic fibrous paper grain noise
-        float noiseVal = fbm(uv * 18.0) * 0.5 + 0.5;
+        // Approximate burn influence for heat haze
+        float approxBurn = 1.0 - smoothstep(0.0, u_radius * 1.3, dist);
 
-        // Burn falls off strictly with cursor hover (does not spread everywhere!)
+        // Heat Refraction / Shimmer Wave (Heat mirage around the burning zone)
+        vec2 heatHaze = vec2(
+          sin(u_time * 10.0 + uv.y * 35.0),
+          cos(u_time * 8.0 + uv.x * 35.0)
+        ) * 0.0035 * approxBurn;
+
+        vec2 distortedUv = uv + heatHaze;
+
+        vec4 topColor = texture2D(u_top, distortedUv);
+        vec4 bottomColor = texture2D(u_bottom, uv);
+
+        // Organic fibrous paper grain noise with subtle heat breathing
+        float noiseVal = fbm(uv * 18.0 + vec2(0.0, u_time * 0.03)) * 0.5 + 0.5;
+
+        // Local burn progress strictly around hover cursor
         float burnMask = 1.0 - smoothstep(0.0, u_radius, dist);
 
-        // Combine distance falloff with paper fiber noise
-        float burnProgress = burnMask * 1.35 - (1.0 - noiseVal) * 0.42;
+        // Alive heat flicker along the burn contour
+        float flicker = sin(u_time * 12.0) * 0.03 + cos(u_time * 24.0 + uv.x * 20.0) * 0.02;
 
-        // ZONE 1: Paper completely consumed by fire (reveals bottom photo)
+        // Combine distance falloff with paper noise and flicker
+        float burnProgress = burnMask * 1.35 - (1.0 - noiseVal) * 0.40 + flicker;
+
+        // ZONE 1: Paper completely burned away (Reveals bottom photo with curling paper shadow)
         if (burnProgress > 0.82) {
-          gl_FragColor = bottomColor;
+          // Ambient drop shadow under curling burnt paper edge
+          float edgeDist = burnProgress - 0.82;
+          float shadowFactor = smoothstep(0.0, 0.08, edgeDist);
+          vec3 shadowedBottom = mix(bottomColor.rgb * 0.45, bottomColor.rgb, shadowFactor);
+          gl_FragColor = vec4(shadowedBottom, 1.0);
         }
-        // ZONE 2: Smoldering glowing ember fire line (hot glowing orange/red embers)
+        // ZONE 2: Smoldering glowing ember fire line (Actively pulsing, breathing living heat)
         else if (burnProgress > 0.72) {
           float t = (burnProgress - 0.72) / 0.10;
-          // Blazing ember gradient from red-orange to hot golden white
-          vec3 ember = mix(vec3(1.0, 0.22, 0.0), vec3(1.0, 0.92, 0.45), t);
-          ember *= 1.85; // High emission heat glow
+          // Pulse the heat intensity with u_time
+          float pulse = 1.6 + sin(u_time * 9.0 + uv.x * 30.0) * 0.35 + cos(u_time * 17.0) * 0.2;
+          // Blazing ember gradient from red-orange to white-hot golden core
+          vec3 ember = mix(vec3(1.0, 0.18, 0.0), vec3(1.0, 0.95, 0.5), t);
+          ember *= pulse;
           gl_FragColor = vec4(ember, 1.0);
         }
-        // ZONE 3: Charred black carbon ash (burnt crisp paper border)
-        else if (burnProgress > 0.58) {
-          float t = (burnProgress - 0.58) / 0.14;
-          vec3 carbonAsh = vec3(0.06, 0.03, 0.02);
-          vec3 emberCreep = vec3(0.85, 0.15, 0.0);
-          gl_FragColor = vec4(mix(carbonAsh, emberCreep, t * 0.65), 1.0);
+        // ZONE 3: Charred black carbon ash (Crisp burnt curled edge)
+        else if (burnProgress > 0.57) {
+          float t = (burnProgress - 0.57) / 0.15;
+          vec3 carbonAsh = vec3(0.05, 0.025, 0.015);
+          vec3 emberCreep = vec3(0.85, 0.12, 0.0);
+          gl_FragColor = vec4(mix(carbonAsh, emberCreep, t * 0.7), 1.0);
         }
-        // ZONE 4: Toasted brown scorched paper (heat discoloration on paper)
-        else if (burnProgress > 0.42) {
-          float t = (burnProgress - 0.42) / 0.16;
-          vec3 scorch = vec3(0.24, 0.11, 0.05);
+        // ZONE 4: Toasted brown scorched paper (Heat damage in paper fibers)
+        else if (burnProgress > 0.41) {
+          float t = (burnProgress - 0.41) / 0.16;
+          vec3 scorch = vec3(0.24, 0.11, 0.04);
           gl_FragColor = vec4(mix(topColor.rgb * 0.75, scorch, t), 1.0);
         }
-        // ZONE 5: Intact unburned paper
+        // ZONE 5: Pristine unburned paper
         else {
           gl_FragColor = topColor;
         }
       }
     `;
 
-    // Shader compilation helper
+    // Shader compilation
     const createShader = (gl, type, source) => {
       const shader = gl.createShader(type);
       gl.shaderSource(shader, source);
@@ -196,10 +219,11 @@ export default function App() {
     const uRadiusLoc = gl.getUniformLocation(program, 'u_radius');
     const uAspectLoc = gl.getUniformLocation(program, 'u_aspect');
     const uHoverLoc = gl.getUniformLocation(program, 'u_hover');
+    const uTimeLoc = gl.getUniformLocation(program, 'u_time');
 
     gl.uniform1i(uTopLoc, 0);
     gl.uniform1i(uBottomLoc, 1);
-    gl.uniform1f(uRadiusLoc, 0.22); // Burn radius strictly around hover
+    gl.uniform1f(uRadiusLoc, 0.24); // Burning zone strictly around hover
     gl.uniform1f(uAspectLoc, canvas.height / canvas.width);
 
     // Texture creation helper
@@ -221,16 +245,9 @@ export default function App() {
     const topImg = new Image();
     const bottomImg = new Image();
 
-    const checkReadyAndDraw = () => {
-      if (topTexReady && bottomTexReady) {
-        drawFrame();
-      }
-    };
-
     topImg.onload = () => {
       createTexture(0, topImg);
       topTexReady = true;
-      checkReadyAndDraw();
     };
     topImg.src = '/assets/anime_layer.png';
     if (topImg.complete) {
@@ -241,7 +258,6 @@ export default function App() {
     bottomImg.onload = () => {
       createTexture(1, bottomImg);
       bottomTexReady = true;
-      checkReadyAndDraw();
     };
     bottomImg.src = '/assets/real_layer.jpg';
     if (bottomImg.complete) {
@@ -249,37 +265,52 @@ export default function App() {
       bottomTexReady = true;
     }
 
-    // Mouse Tracking: Normalized (0 to 1) coordinates
-    let mouseNorm = { x: 0.5, y: 0.5 };
+    // Smooth cursor interpolation (heat inertia)
+    let targetMouse = { x: 0.5, y: 0.5 };
+    let currentMouse = { x: 0.5, y: 0.5 };
     let isHovered = false;
+    let hoverAmount = 0.0;
+    let animId;
+    let clock = 0;
 
-    const drawFrame = () => {
-      if (!topTexReady || !bottomTexReady) return;
-      gl.viewport(0, 0, canvas.width, canvas.height);
-      gl.uniform2f(uMouseLoc, mouseNorm.x, mouseNorm.y);
-      gl.uniform1f(uHoverLoc, isHovered ? 1.0 : 0.0);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    // Continuous 60fps render loop so the fire is actively alive and breathing
+    const renderLoop = () => {
+      clock += 0.035;
+
+      // Smoothly interpolate hover and cursor position for organic fluid response
+      currentMouse.x += (targetMouse.x - currentMouse.x) * 0.16;
+      currentMouse.y += (targetMouse.y - currentMouse.y) * 0.16;
+      hoverAmount += ((isHovered ? 1.0 : 0.0) - hoverAmount) * 0.12;
+
+      if (topTexReady && bottomTexReady) {
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.uniform2f(uMouseLoc, currentMouse.x, currentMouse.y);
+        gl.uniform1f(uHoverLoc, hoverAmount);
+        gl.uniform1f(uTimeLoc, clock);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
+
+      animId = requestAnimationFrame(renderLoop);
     };
+
+    animId = requestAnimationFrame(renderLoop);
 
     const handleMouseMove = (e) => {
       const rect = canvas.getBoundingClientRect();
       const x = (e.clientX - rect.left) / rect.width;
       const y = (e.clientY - rect.top) / rect.height;
 
-      mouseNorm.x = Math.max(0, Math.min(1, x));
-      mouseNorm.y = Math.max(0, Math.min(1, y));
+      targetMouse.x = Math.max(0, Math.min(1, x));
+      targetMouse.y = Math.max(0, Math.min(1, y));
       isHovered = true;
-      drawFrame();
     };
 
     const handleMouseEnter = () => {
       isHovered = true;
-      drawFrame();
     };
 
     const handleMouseLeave = () => {
       isHovered = false;
-      drawFrame();
     };
 
     canvas.addEventListener('mousemove', handleMouseMove);
@@ -287,6 +318,7 @@ export default function App() {
     canvas.addEventListener('mouseleave', handleMouseLeave);
 
     return () => {
+      cancelAnimationFrame(animId);
       canvas.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('mouseenter', handleMouseEnter);
       canvas.removeEventListener('mouseleave', handleMouseLeave);
@@ -314,7 +346,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* 2. Immersive Hero Viewport (Photorealistic Burning Paper Shader) */}
+      {/* 2. Immersive Hero Viewport (Living Burning Paper Shader) */}
       <main className="hero-viewport">
         <div className="art-stage-wrapper">
           <canvas 
