@@ -114,7 +114,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 22px;
+  gap: 20px;
 }
 
 .art-stage-wrapper {
@@ -160,85 +160,52 @@ body {
   z-index: 5;
 }
 
-/* Interaction Hint Pill */
-.burn-interaction-hint {
-  position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 16px;
-  background: rgba(10, 12, 16, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 9999px;
-  font-size: 0.78rem;
-  letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.75);
-  pointer-events: none;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
-  transition: opacity 0.3s ease;
-}
-
-.flame-pulse-icon {
-  color: #ff5511;
-  animation: pulseFlame 1.8s infinite alternate ease-in-out;
-}
-
-@keyframes pulseFlame {
-  0% { transform: scale(0.9); opacity: 0.7; filter: drop-shadow(0 0 2px #ff5511); }
-  100% { transform: scale(1.15); opacity: 1; filter: drop-shadow(0 0 8px #ffb84d); }
-}
-
-/* 3. Interactive Toolbar Controls */
+/* 3. Pure Icon-Only Floating Dock (No Text Names) */
 .burn-controls-toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  background: rgba(14, 16, 22, 0.6);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  padding: 6px 8px;
+  gap: 10px;
+  background: rgba(14, 16, 22, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 6px 10px;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.5);
 }
 
-.mode-btn {
+.icon-only-btn {
   display: flex;
   align-items: center;
-  gap: 7px;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
   background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.6);
-  font-family: var(--font-main);
-  font-size: 0.82rem;
-  font-weight: 500;
-  padding: 8px 16px;
-  border-radius: 9999px;
+  border: 1px solid transparent;
+  color: rgba(255, 255, 255, 0.55);
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.mode-btn:hover {
+.icon-only-btn:hover {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
 }
 
-.mode-btn.active-mode {
-  background: rgba(255, 85, 17, 0.16);
+.icon-only-btn.active-icon-btn {
+  background: rgba(255, 85, 17, 0.18);
   color: #ffb84d;
-  border: 1px solid rgba(255, 184, 77, 0.3);
-  box-shadow: 0 0 16px rgba(255, 85, 17, 0.2);
+  border: 1px solid rgba(255, 184, 77, 0.35);
+  box-shadow: 0 0 16px rgba(255, 85, 17, 0.25);
+  transform: translateY(-1px);
 }
 
-.mode-btn.reset-btn:hover {
-  color: #ff7744;
-  background: rgba(255, 85, 17, 0.08);
+.icon-only-btn.reset-icon-btn:hover {
+  color: #ff6633;
+  background: rgba(255, 85, 17, 0.1);
+  transform: rotate(-45deg) translateY(-1px);
 }
 
 /* 4. Minimal Scroll Demonstration Zone */
